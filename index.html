@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jumbitos – Cloud &amp; Infra Readiness Advisor</title>
+  <meta name="description" content="Simulador de Migração para a Nuvem: diagnóstico de infraestrutura, risco operacional, modelo de nuvem recomendado (SaaS, PaaS, IaaS ou Híbrida) e laudo técnico com roteiro seguro de migração. Processamento 100% local no navegador." />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230284c7'/%3E%3Cpath d='M20 42h24a9 9 0 0 0 0-18 13 13 0 0 0-25 3 7.5 7.5 0 0 0 1 15z' fill='white'/%3E%3C/svg%3E" />
+
+  <!-- Fonte Inter (Google Fonts) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- TailwindCSS (Play CDN, versão fixada) -->
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'] },
+          colors: {
+            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c2a4a' },
+            ink: { 900: '#0b1220', 800: '#111a2e' }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Chart.js (gráfico radar) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Link "pular para o conteúdo" (acessibilidade) */
+    .skip-link { position: absolute; left: -9999px; top: 0; }
+    .skip-link:focus { left: 16px; top: 12px; z-index: 100; }
+
+    /* Estado de erro de pergunta não respondida */
+    .question-error { border-color: #dc2626 !important; background: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
+    .question-error .question-error-msg { display: flex !important; }
+
+    /* Anel do Score Geral (preenchido via conic-gradient) */
+    .score-ring { width: 168px; height: 168px; border-radius: 9999px; display: grid; place-items: center; }
+    .score-ring-inner { width: 128px; height: 128px; border-radius: 9999px; background: #fff; display: grid; place-items: center; }
+
+    /* Linha do tempo do roteiro */
+    .timeline { position: relative; }
+    .timeline::before { content: ''; position: absolute; left: 21px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(#0284c7, #10b981); }
+
+    /* Elementos exclusivos da impressão */
+    .print-only { display: none; }
+
+    /* Garante que as cores impressas sejam preservadas */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* ===================== CSS DE IMPRESSÃO / PDF ===================== */
+    @media print {
+      @page { size: A4; margin: 12mm 11mm; }
+      html, body { background: #ffffff !important; font-size: 11px; }
+      .no-print, .app-header, #formSection, #toast, .skip-link { display: none !important; }
+      .print-only { display: block !important; }
+      main { padding: 0 !important; max-width: none !important; }
+      #resultsSection { margin-top: 0 !important; padding-top: 0 !important; }
+      .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+      .card, .avoid-break, li.phase, .rec-item, .pillar-card { break-inside: avoid; page-break-inside: avoid; }
+      .print-break-before { break-before: page; page-break-before: always; }
+      h2, h3 { break-after: avoid; page-break-after: avoid; }
+      .print-cols-2 { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .print-cols-3 { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .print-cols-4 { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+      .print-span-full { grid-column: 1 / -1 !important; }
+      /* O canvas é substituído por uma imagem estática para não deformar na impressão */
+      #radarCanvasWrap { display: none !important; }
+      #radarPrintImg { display: block !important; width: 100%; max-width: 420px; margin: 0 auto; height: auto; }
+      .score-ring { width: 130px; height: 130px; }
+      .score-ring-inner { width: 100px; height: 100px; }
+      a { color: inherit; text-decoration: none; }
+      footer { border-top: 1px solid #cbd5e1; margin-top: 12px; }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
+  <a href="#main" class="skip-link rounded-lg bg-white px-4 py-2 font-semibold text-brand-700 shadow ring-2 ring-brand-600">Pular para o conteúdo</a>
+
+  <noscript>
+    <div class="bg-red-700 p-4 text-center font-semibold text-white">Este simulador precisa de JavaScript habilitado para funcionar.</div>
+  </noscript>
+
+  <!-- ===================== CABEÇALHO EXECUTIVO ===================== -->
+  <header class="app-header relative overflow-hidden bg-gradient-to-br from-[#0b1220] via-[#10204a] to-[#0c4a6e] text-white">
+    <div aria-hidden="true" class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl"></div>
+    <div aria-hidden="true" class="pointer-events-none absolute -bottom-32 left-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"></div>
+
+    <div class="relative mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-500 shadow-lg shadow-sky-900/40">
+            <i data-lucide="cloud-cog" class="h-7 w-7 text-white"></i>
+          </div>
+          <div>
+            <p class="text-2xl font-extrabold tracking-tight">Jumbitos</p>
+            <p class="text-xs font-medium uppercase tracking-[0.18em] text-sky-200">Cloud &amp; Infra Readiness Advisor</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-emerald-200">
+            <i data-lucide="shield-check" class="h-4 w-4"></i> Privacy by Design · LGPD
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-sky-300/40 bg-sky-400/10 px-3 py-1.5 text-sky-100">
+            <i data-lucide="cpu" class="h-4 w-4"></i> Processamento 100% local
+          </span>
+        </div>
+      </div>
+
+      <div class="mt-8 grid items-end gap-8 lg:grid-cols-5">
+        <div class="lg:col-span-3">
+          <h1 class="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            Simulador de Migração para a Nuvem
+          </h1>
+          <p class="mt-3 max-w-2xl text-base leading-relaxed text-slate-200">
+            Diagnostique servidores, rede, dados e backup da sua empresa, descubra o modelo de nuvem mais adequado
+            (SaaS, PaaS, IaaS ou Híbrido), meça o risco operacional da migração e gere um <strong class="text-white">Laudo Técnico</strong>
+            com roteiro seguro de migração.
+          </p>
+        </div>
+        <ol class="grid grid-cols-3 gap-3 text-center text-xs sm:text-sm lg:col-span-2" aria-label="Etapas do diagnóstico">
+          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+            <i data-lucide="building-2" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
+            <span class="font-semibold">1. Perfil</span>
+          </li>
+          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+            <i data-lucide="list-checks" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
+            <span class="font-semibold">2. 8 perguntas</span>
+          </li>
+          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
+            <i data-lucide="file-text" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
+            <span class="font-semibold">3. Laudo</span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+    <!-- ===================== FORMULÁRIO DE DIAGNÓSTICO ===================== -->
+    <section id="formSection" aria-labelledby="formTitle">
+      <form id="diagnosticForm" novalidate>
+        <!-- Perfil da empresa -->
+        <div class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 id="formTitle" class="flex items-center gap-2 text-xl font-bold text-slate-900">
+                <i data-lucide="building-2" class="h-5 w-5 text-brand-600"></i> Perfil da Empresa
+              </h2>
+              <p class="mt-1 text-sm text-slate-600">Esses dados personalizam o laudo e influenciam a recomendação do modelo de nuvem.</p>
+            </div>
+            <button type="button" id="btnDemo"
+              class="inline-flex items-center gap-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
+              <i data-lucide="circle-play" class="h-5 w-5"></i> Carregar Caso Exemplo (Demo)
+            </button>
+          </div>
+
+          <div class="mt-5 grid gap-4 md:grid-cols-3">
+            <div>
+              <label for="companyName" class="mb-1 block text-sm font-semibold text-slate-800">Nome da Empresa <span class="text-red-700" aria-hidden="true">*</span></label>
+              <input id="companyName" name="companyName" type="text" maxlength="90" autocomplete="organization" placeholder="Ex.: Comercial Aurora Ltda."
+                aria-describedby="companyNameError" aria-required="true"
+                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 placeholder:text-slate-500 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+              <p id="companyNameError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Informe o nome da empresa.</p>
+            </div>
+            <div>
+              <label for="sector" class="mb-1 block text-sm font-semibold text-slate-800">Setor <span class="text-red-700" aria-hidden="true">*</span></label>
+              <select id="sector" name="sector" aria-describedby="sectorError" aria-required="true"
+                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100">
+                <option value="">Selecione o setor…</option>
+              </select>
+              <p id="sectorError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Selecione o setor de atuação.</p>
+            </div>
+            <div>
+              <label for="size" class="mb-1 block text-sm font-semibold text-slate-800">Porte <span class="text-red-700" aria-hidden="true">*</span></label>
+              <select id="size" name="size" aria-describedby="sizeError" aria-required="true"
+                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100">
+                <option value="">Selecione o porte…</option>
+              </select>
+              <p id="sizeError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Selecione o porte da empresa.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de progresso (fixa ao rolar) -->
+        <div class="sticky top-0 z-20 -mx-4 mt-6 border-b border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
+          <div class="flex items-center justify-between gap-3 text-sm">
+            <span class="font-semibold text-slate-800">Progresso do diagnóstico</span>
+            <span id="progressText" class="font-semibold text-brand-700" aria-live="polite">0 de 8 perguntas respondidas</span>
+          </div>
+          <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" id="progressBar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" aria-label="Perguntas respondidas">
+            <div id="progressFill" class="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-300" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Pilares e perguntas (renderizados dinamicamente a partir de QUESTIONS) -->
+        <div id="questionsContainer" class="mt-6 space-y-6"></div>
+
+        <!-- Mensagem de validação -->
+        <div id="validationMessage" role="alert" aria-live="assertive" tabindex="-1"
+          class="mt-6 hidden rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-900 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300"></div>
+
+        <!-- Ações do formulário -->
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p class="flex items-center gap-2 text-sm text-slate-600">
+            <i data-lucide="lock" class="h-4 w-4 text-emerald-700"></i>
+            Nenhum dado sai do seu navegador.
+          </p>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button type="button" id="btnReset"
+              class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
+              <i data-lucide="rotate-ccw" class="h-4 w-4"></i> Limpar formulário
+            </button>
+            <button type="submit" id="btnSubmit"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-900/20 transition hover:bg-brand-900 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300">
+              <i data-lucide="gauge" class="h-5 w-5"></i> Gerar Diagnóstico e Laudo
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- ===================== PAINEL DE RESULTADOS / LAUDO ===================== -->
+    <section id="resultsSection" class="mt-12 hidden" aria-labelledby="resultsTitle">
+
+      <!-- Cabeçalho do laudo exclusivo da impressão -->
+      <div class="print-only mb-4 border-b-2 border-slate-800 pb-3">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;">
+          <div>
+            <p style="font-size:20px;font-weight:800;color:#0b1220;">Jumbitos <span style="font-weight:600;color:#0369a1;">· Cloud &amp; Infra Readiness Advisor</span></p>
+            <p style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155;">Laudo Técnico de Prontidão para Nuvem</p>
+          </div>
+          <div style="text-align:right;font-size:11px;color:#334155;">
+            <p><strong>Empresa:</strong> <span id="printCompany">—</span></p>
+            <p><strong>Data de emissão:</strong> <span id="printDate">—</span></p>
+            <p><strong>Laudo nº:</strong> <span id="printReportId">—</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cabeçalho do laudo em tela -->
+      <div class="card flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-700">Laudo Técnico · Resultado do Diagnóstico</p>
+          <h2 id="resultsTitle" tabindex="-1" class="mt-1 text-2xl font-extrabold text-slate-900 focus:outline-none"></h2>
+          <p id="resultsMeta" class="mt-1 text-sm text-slate-600"></p>
+        </div>
+        <div class="no-print flex flex-col gap-2 sm:flex-row">
+          <button type="button" id="btnEdit"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
+            <i data-lucide="pencil-line" class="h-4 w-4"></i> Editar respostas
+          </button>
+          <button type="button" id="btnNew"
+            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
+            <i data-lucide="rotate-ccw" class="h-4 w-4"></i> Novo diagnóstico
+          </button>
+          <button type="button" id="btnPrint"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300">
+            <i data-lucide="printer" class="h-4 w-4"></i> Imprimir / Exportar Laudo em PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Sumário executivo -->
+      <div class="card mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 sm:p-6">
+        <h3 class="flex items-center gap-2 text-base font-bold text-sky-900"><i data-lucide="file-text" class="h-5 w-5"></i> Sumário Executivo</h3>
+        <p id="executiveSummary" class="mt-2 leading-relaxed text-slate-800"></p>
+      </div>
+
+      <!-- Score, Risco e Modelo -->
+      <div class="mt-6 grid gap-6 lg:grid-cols-3 print-cols-3">
+        <article id="scoreCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="scoreCardTitle"></article>
+        <article id="riskCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="riskCardTitle"></article>
+        <article id="modelCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="modelCardTitle"></article>
+      </div>
+
+      <!-- Cards por pilar -->
+      <h3 class="mt-10 flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="layers" class="h-5 w-5 text-brand-600"></i> Nota por Pilar</h3>
+      <div id="pillarCards" class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print-cols-4"></div>
+
+      <!-- Radar + alertas -->
+      <div class="mt-8 grid gap-6 lg:grid-cols-5 print-cols-2">
+        <article class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3" aria-labelledby="radarTitle">
+          <h3 id="radarTitle" class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="radar" class="h-5 w-5 text-brand-600"></i> Radar de Prontidão vs. Nível Ideal</h3>
+          <p class="mt-1 text-sm text-slate-600">Comparação da pontuação da empresa em cada pilar com a referência de nível ideal para migração.</p>
+          <div id="radarCanvasWrap" class="relative mt-4 h-80 sm:h-96">
+            <canvas id="radarChart" role="img" aria-label="Gráfico radar com a pontuação de cada pilar"></canvas>
+          </div>
+          <img id="radarPrintImg" class="print-only" alt="Gráfico radar de prontidão por pilar" />
+          <p id="radarFallback" class="sr-only"></p>
+        </article>
+        <article class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="alertsTitle">
+          <h3 id="alertsTitle" class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="triangle-alert" class="h-5 w-5 text-amber-600"></i> Vulnerabilidades Prioritárias</h3>
+          <p class="mt-1 text-sm text-slate-600">Respostas com pontuação 0 ou 1, que exigem tratamento antes ou durante a migração.</p>
+          <ul id="alertsList" class="mt-4 space-y-3"></ul>
+        </article>
+      </div>
+
+      <!-- Plano de Boas Práticas -->
+      <div class="print-break-before mt-10">
+        <h3 class="flex items-center gap-2 text-xl font-bold text-slate-900"><i data-lucide="lightbulb" class="h-6 w-6 text-amber-500"></i> Plano de Boas Práticas do Especialista</h3>
+        <p class="mt-1 text-sm text-slate-600">Recomendações técnicas personalizadas conforme a faixa de nota de cada pilar: <strong>baixa</strong> (0–39%), <strong>média</strong> (40–69%) ou <strong>alta</strong> (70–100%).</p>
+        <div id="recommendations" class="mt-4 grid gap-5 lg:grid-cols-2 print-cols-2"></div>
+      </div>
+
+      <!-- Roteiro de migração -->
+      <div class="print-break-before mt-10">
+        <h3 class="flex items-center gap-2 text-xl font-bold text-slate-900"><i data-lucide="route" class="h-6 w-6 text-brand-600"></i> Roteiro Seguro de Migração</h3>
+        <p id="roadmapIntro" class="mt-1 text-sm text-slate-600"></p>
+        <ol id="roadmap" class="timeline mt-6 space-y-6"></ol>
+      </div>
+
+      <!-- Metodologia -->
+      <div class="card mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="info" class="h-5 w-5 text-brand-600"></i> Metodologia de Cálculo</h3>
+        <div id="methodology" class="mt-3 text-sm text-slate-700"></div>
+      </div>
+
+      <!-- Assinaturas (somente impressão) -->
+      <div class="print-only avoid-break mt-8">
+        <p style="font-weight:700;margin-bottom:28px;">Responsáveis técnicos</p>
+        <div id="printSignatures" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;"></div>
+        <p style="margin-top:16px;font-size:10px;color:#475569;">Este laudo é uma estimativa orientativa baseada nas respostas informadas e não substitui uma avaliação técnica presencial (assessment) com coleta de métricas reais do ambiente.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== RODAPÉ ===================== -->
+  <footer class="mt-10 border-t border-slate-200 bg-white">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div class="inline-flex max-w-xl items-start gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
+          <i data-lucide="shield-check" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-700"></i>
+          <p class="text-sm"><strong>Privacy by Design (LGPD):</strong> Todos os cálculos são processados localmente no seu navegador.</p>
+        </div>
+        <div>
+          <p class="text-sm font-bold uppercase tracking-wider text-slate-700">Especialistas autores</p>
+          <!-- Os nomes são definidos em APP_CONFIG.authors (no script abaixo) -->
+          <ul id="authorsList" class="mt-2 space-y-1 text-sm text-slate-700"></ul>
+        </div>
+      </div>
+      <p class="mt-6 text-xs text-slate-600">© <span id="footerYear"></span> Jumbitos – Cloud &amp; Infra Readiness Advisor. Ferramenta educacional e orientativa; os resultados não substituem um assessment técnico completo.</p>
+    </div>
+  </footer>
+
+  <!-- Notificação acessível -->
+  <div id="toast" role="status" aria-live="polite"
+    class="pointer-events-none fixed bottom-4 left-1/2 z-50 hidden w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-center text-sm font-medium text-white shadow-xl"></div>
+
+  <script>
+  'use strict';
+
+  /* =====================================================================
+   * 1. CONFIGURAÇÃO GERAL
+   *    Altere aqui nomes dos autores e o nível ideal de referência do radar.
+   * ===================================================================== */
+  const APP_CONFIG = {
+    appName: 'Jumbitos',
+    idealLevel: 85,            // Linha de referência "nível ideal" no gráfico radar (0–100%)
+    maxOptionScore: 4,         // Pontuação máxima de cada alternativa
+    // Créditos dos especialistas autores (nomes de exemplo — substitua livremente)
+    authors: [
+      { name: 'Ana Beatriz Moura', role: 'Arquiteta de Soluções Cloud (AWS / Azure)' },
+      { name: 'Carlos Henrique Lima', role: 'Especialista em Segurança, Continuidade e LGPD' },
+      { name: 'Juliana Prado', role: 'Consultora de Sistemas Empresariais (ERP/CRM) e Automação com IA' }
+    ]
+  };
+
+  /* =====================================================================
+   * 2. PILARES DO DIAGNÓSTICO E PESOS
+   *    weight     → peso no Score Geral de Prontidão (soma = 1,00)
+   *    riskWeight → peso no Índice de Risco Operacional (soma = 1,00)
+   *                 Backup/Continuidade e Rede recebem os maiores pesos de
+   *                 risco, pois são os pilares que mais causam indisponibilidade
+   *                 e perda de dados durante uma migração.
+   * ===================================================================== */
+  const PILLARS = [
+    {
+      id: 'servidores', name: 'Servidores e Computação', short: 'Servidores', icon: 'server',
+      description: 'Idade do hardware, nível de virtualização e dependência de sistemas legados.',
+      weight: 0.25, riskWeight: 0.20, color: '#0284c7'
+    },
+    {
+      id: 'rede', name: 'Rede e Conectividade', short: 'Rede', icon: 'network',
+      description: 'Link de internet, redundância de conectividade e segurança de perímetro.',
+      weight: 0.20, riskWeight: 0.30, color: '#7c3aed'
+    },
+    {
+      id: 'dados', name: 'Dados e Armazenamento', short: 'Dados', icon: 'database',
+      description: 'Volume e crescimento dos dados e classificação de dados pessoais (LGPD).',
+      weight: 0.25, riskWeight: 0.15, color: '#0d9488'
+    },
+    {
+      id: 'backup', name: 'Backup e Continuidade', short: 'Backup', icon: 'archive-restore',
+      description: 'Aderência à regra 3-2-1, testes de restauração e metas de RPO/RTO.',
+      weight: 0.30, riskWeight: 0.35, color: '#c2410c'
+    }
+  ];
+
+  /* =====================================================================
+   * 3. SETORES E PORTES
+   *    modelPoints → pontos somados a cada modelo de nuvem na recomendação.
+   *    regulated   → setor regulado / com dados sensíveis (agrava o risco
+   *                  quando a maturidade em LGPD é baixa).
+   *    timeFactor  → multiplicador de prazo do roteiro conforme o porte.
+   * ===================================================================== */
+  const SECTORS = [
+    { id: 'industria', label: 'Indústria / Manufatura', regulated: false, modelPoints: { IaaS: 2, Hibrida: 1 },
+      reason: 'Indústrias costumam operar sistemas de chão de fábrica (MES/SCADA) e ERPs customizados, o que favorece o rehost em IaaS e a integração híbrida com a automação industrial (OT).' },
+    { id: 'comercio', label: 'Comércio / Varejo', regulated: false, modelPoints: { SaaS: 2, PaaS: 1 },
+      reason: 'O varejo se beneficia de ERP, PDV e e-commerce em SaaS, com elasticidade para picos sazonais (Black Friday, datas comemorativas).' },
+    { id: 'servicos', label: 'Serviços Profissionais', regulated: false, modelPoints: { SaaS: 2, PaaS: 1 },
+      reason: 'Empresas de serviços dependem de colaboração, CRM, gestão financeira e de projetos — aplicações maduras e amplamente disponíveis em SaaS.' },
+    { id: 'saude', label: 'Saúde', regulated: true, modelPoints: { Hibrida: 2, SaaS: 1 },
+      reason: 'A saúde trata dados pessoais sensíveis (LGPD, art. 11) e sistemas como PEP e PACS, exigindo controle de localização dos dados e, com frequência, arquitetura híbrida.' },
+    { id: 'financeiro', label: 'Financeiro / Seguros', regulated: true, modelPoints: { Hibrida: 2, IaaS: 1, PaaS: 1 },
+      reason: 'O setor financeiro é regulado (ex.: Resolução CMN nº 4.893/2021 sobre segurança cibernética e nuvem), exigindo governança, auditoria e, muitas vezes, arquitetura híbrida.' },
+    { id: 'educacao', label: 'Educação', regulated: false, modelPoints: { SaaS: 2 },
+      reason: 'Instituições de ensino têm excelentes opções SaaS (LMS, colaboração, gestão acadêmica), muitas com licenciamento educacional subsidiado.' },
+    { id: 'tecnologia', label: 'Tecnologia / Software', regulated: false, modelPoints: { PaaS: 3, SaaS: 1 },
+      reason: 'Empresas de tecnologia desenvolvem software próprio e extraem mais valor de PaaS, containers, CI/CD e serviços gerenciados.' },
+    { id: 'logistica', label: 'Logística / Transporte', regulated: false, modelPoints: { IaaS: 1, PaaS: 1, SaaS: 1 },
+      reason: 'A logística demanda integração em tempo real (TMS/WMS, rastreamento, APIs com parceiros), combinando SaaS e plataformas de integração.' },
+    { id: 'agro', label: 'Agronegócio', regulated: false, modelPoints: { Hibrida: 2, SaaS: 1 },
+      reason: 'O agronegócio frequentemente opera em áreas com conectividade limitada, favorecendo arquitetura híbrida com processamento local (edge) e sincronização com a nuvem.' },
+    { id: 'governo', label: 'Setor Público / Governo', regulated: true, modelPoints: { Hibrida: 2, IaaS: 1 },
+      reason: 'Órgãos públicos seguem normas específicas de contratação e soberania de dados, favorecendo nuvem híbrida ou nuvem de governo.' },
+    { id: 'outro', label: 'Outro', regulated: false, modelPoints: { SaaS: 1, IaaS: 1 },
+      reason: 'Perfil genérico: equilíbrio entre aplicações SaaS e infraestrutura flexível em IaaS.' }
+  ];
+
+  const SIZES = [
+    { id: 'micro', label: 'Micro (até 19 colaboradores)', short: 'Microempresa', modelPoints: { SaaS: 3 }, timeFactor: 0.5,
+      reason: 'Microempresas raramente têm equipe de TI dedicada; SaaS elimina a gestão de servidores e converte custo fixo em assinatura.' },
+    { id: 'pequena', label: 'Pequena (20 a 99 colaboradores)', short: 'Pequena empresa', modelPoints: { SaaS: 2, PaaS: 1 }, timeFactor: 0.75,
+      reason: 'Pequenas empresas ganham agilidade com SaaS para processos padrão, reservando PaaS para aplicações diferenciais.' },
+    { id: 'media', label: 'Média (100 a 499 colaboradores)', short: 'Média empresa', modelPoints: { IaaS: 2, PaaS: 1, Hibrida: 1 }, timeFactor: 1.0,
+      reason: 'Médias empresas costumam ter parque de servidores próprio e sistemas customizados, que migram com menor risco via IaaS (rehost).' },
+    { id: 'grande', label: 'Grande (500+ colaboradores)', short: 'Grande empresa', modelPoints: { Hibrida: 2, IaaS: 2, PaaS: 1 }, timeFactor: 1.6,
+      reason: 'Grandes empresas têm portfólio extenso e heterogêneo de aplicações, o que normalmente leva a uma estratégia híbrida com migração em ondas.' }
+  ];
+
+  /* =====================================================================
+   * 4. PERGUNTAS ESTRATÉGICAS (2 por pilar)
+   *    Cada alternativa tem pontuação de 0 (pior) a 4 (melhor) e texto
+   *    descritivo. Para editar, basta alterar os textos abaixo.
+   * ===================================================================== */
+  const QUESTIONS = [
+    // ---------- Servidores e Computação ----------
+    {
+      id: 'q1', pillar: 'servidores', short: 'Idade do hardware',
+      title: 'Qual é a idade média e o estado do hardware dos seus servidores?',
+      help: 'Considere servidores físicos, storages e equipamentos que hospedam sistemas da empresa.',
+      options: [
+        { score: 0, label: 'Mais de 8 anos, sem garantia', desc: 'Equipamentos fora de suporte do fabricante, com falhas frequentes e peças difíceis de repor.' },
+        { score: 1, label: '6 a 8 anos, garantia expirada', desc: 'Funcionam, mas sem contrato de suporte; o risco de falha de hardware é crescente.' },
+        { score: 2, label: '4 a 6 anos, com garantia estendida', desc: 'Hardware estável, porém próximo do fim de vida útil e de novos ciclos de investimento (CAPEX).' },
+        { score: 3, label: '2 a 4 anos, com suporte do fabricante', desc: 'Parque relativamente atualizado e com contrato de suporte ativo.' },
+        { score: 4, label: 'Menos de 2 anos ou já em nuvem', desc: 'Hardware novo ou cargas majoritariamente hospedadas em nuvem/colocation gerenciado.' }
+      ]
+    },
+    {
+      id: 'q2', pillar: 'servidores', short: 'Virtualização e legados',
+      title: 'Qual o nível de virtualização e de dependência de sistemas legados?',
+      help: 'Sistemas legados: aplicações antigas, sem suporte, com tecnologia descontinuada ou fortemente acopladas ao servidor físico.',
+      options: [
+        { score: 0, label: 'Servidores físicos e legados críticos sem suporte', desc: 'Nenhuma virtualização; ERP ou sistemas críticos rodam em SO descontinuado (ex.: Windows Server 2008) e ninguém domina o código.' },
+        { score: 1, label: 'Pouca virtualização e legados fortemente acoplados', desc: 'Menos de 30% virtualizado; sistemas legados com integrações via arquivo ou acesso direto ao banco.' },
+        { score: 2, label: 'Virtualização parcial (~50%)', desc: 'Parte dos servidores em hipervisor (VMware, Hyper-V, Proxmox); alguns legados já têm plano de substituição.' },
+        { score: 3, label: 'Majoritariamente virtualizado, legados isolados', desc: 'Mais de 80% em VMs, sistemas suportados e legados isolados com integrações por API.' },
+        { score: 4, label: '100% virtualizado ou containerizado', desc: 'Ambiente padronizado (VMs/containers), infraestrutura como código e nenhuma dependência crítica de legados.' }
+      ]
+    },
+    // ---------- Rede e Conectividade ----------
+    {
+      id: 'q3', pillar: 'rede', short: 'Link e redundância',
+      title: 'Como é o link de internet e a redundância de conectividade?',
+      help: 'Após a migração, a internet passa a ser o caminho para todos os sistemas — a disponibilidade do link é crítica.',
+      options: [
+        { score: 0, label: 'Link único compartilhado/residencial', desc: 'Banda insuficiente, sem SLA e com quedas frequentes que já afetam a operação.' },
+        { score: 1, label: 'Link único empresarial, sem redundância', desc: 'Banda razoável, mas sem SLA formal e sem link de contingência.' },
+        { score: 2, label: 'Link dedicado com SLA, sem redundância', desc: 'Link dedicado com SLA e IP fixo, porém ponto único de falha.' },
+        { score: 3, label: 'Dois links com failover manual', desc: 'Links de operadoras distintas; a troca em caso de falha depende de intervenção da equipe.' },
+        { score: 4, label: 'Links redundantes com failover automático', desc: 'Dois ou mais links de operadoras distintas com SD-WAN/failover automático e banda monitorada.' }
+      ]
+    },
+    {
+      id: 'q4', pillar: 'rede', short: 'Segurança de perímetro',
+      title: 'Qual o nível de segurança de perímetro e de acesso remoto?',
+      help: 'Considere firewall, VPN, autenticação multifator (MFA), segmentação e monitoramento.',
+      options: [
+        { score: 0, label: 'Apenas o roteador da operadora', desc: 'Sem firewall dedicado; acesso remoto por RDP exposto ou ferramentas de acesso sem controle.' },
+        { score: 1, label: 'Firewall básico, sem VPN corporativa', desc: 'Regras não revisadas, sem MFA e sem registro centralizado de eventos.' },
+        { score: 2, label: 'Firewall dedicado com VPN', desc: 'VPN para acesso remoto, mas atualizações irregulares e MFA parcial.' },
+        { score: 3, label: 'Firewall de nova geração (NGFW) com MFA', desc: 'IPS/IDS, filtragem web, VPN com MFA, segmentação por VLAN e logs monitorados.' },
+        { score: 4, label: 'Modelo Zero Trust e monitoramento 24x7', desc: 'NGFW/SASE, MFA em todos os acessos, microsegmentação e SOC/SIEM monitorando continuamente.' }
+      ]
+    },
+    // ---------- Dados e Armazenamento ----------
+    {
+      id: 'q5', pillar: 'dados', short: 'Volume e crescimento',
+      title: 'Qual o controle sobre o volume, o crescimento e a organização dos dados?',
+      help: 'O volume e a taxa de crescimento definem o tempo de transferência, o custo de armazenamento e a estratégia de migração dos dados.',
+      options: [
+        { score: 0, label: 'Volume desconhecido e dados dispersos', desc: 'Arquivos espalhados em PCs, pendrives e e-mails; ninguém sabe quanto a empresa armazena.' },
+        { score: 1, label: 'Armazenamento local saturado', desc: 'Servidor/NAS com mais de 85% de ocupação e crescimento não monitorado.' },
+        { score: 2, label: 'Volume conhecido e centralizado', desc: 'Servidor de arquivos centralizado e crescimento estimado, mas sem política de retenção.' },
+        { score: 3, label: 'Volume mapeado e política de retenção', desc: 'Crescimento monitorado, retenção definida e limpeza periódica de dados obsoletos.' },
+        { score: 4, label: 'Ciclo de vida automatizado', desc: 'Inventário completo, camadas de armazenamento (quente/fria/arquivo) e dados já parcialmente em nuvem.' }
+      ]
+    },
+    {
+      id: 'q6', pillar: 'dados', short: 'Dados pessoais (LGPD)',
+      title: 'Como a empresa classifica e protege os dados pessoais (LGPD)?',
+      help: 'A LGPD (Lei nº 13.709/2018) exige saber quais dados pessoais são tratados, com qual base legal e com quais controles de segurança.',
+      options: [
+        { score: 0, label: 'Não sabemos onde estão os dados pessoais', desc: 'Sem inventário, sem Encarregado (DPO) e sem política de privacidade.' },
+        { score: 1, label: 'Conhecimento informal', desc: 'A equipe sabe onde estão os principais dados, mas não há registro formal nem controles definidos.' },
+        { score: 2, label: 'Inventário parcial e política publicada', desc: 'Registro das Operações de Tratamento (ROPA) em andamento e política de privacidade publicada.' },
+        { score: 3, label: 'Dados classificados e DPO nomeado', desc: 'Classificação da informação, Encarregado nomeado e controle de acesso por perfil.' },
+        { score: 4, label: 'Governança de privacidade madura', desc: 'Criptografia, RIPD/DPIA, gestão de consentimento, atendimento aos titulares e auditorias periódicas.' }
+      ]
+    },
+    // ---------- Backup e Continuidade ----------
+    {
+      id: 'q7', pillar: 'backup', short: 'Regra 3-2-1',
+      title: 'Qual a aderência da empresa à regra de backup 3-2-1?',
+      help: 'Regra 3-2-1: 3 cópias dos dados, em 2 mídias diferentes, sendo 1 cópia fora do local (offsite/nuvem).',
+      options: [
+        { score: 0, label: 'Sem backup estruturado', desc: 'Nenhum backup ou cópias manuais eventuais, sem rotina definida.' },
+        { score: 1, label: 'Uma cópia local', desc: 'Backup em HD externo ou NAS, no mesmo local físico dos servidores.' },
+        { score: 2, label: 'Duas cópias, sem cópia externa', desc: 'Duas mídias diferentes, porém ambas no mesmo prédio (vulnerável a incêndio, furto e ransomware).' },
+        { score: 3, label: 'Regra 3-2-1 implementada', desc: 'Três cópias, duas mídias e uma cópia offsite ou em nuvem, com rotina automatizada.' },
+        { score: 4, label: '3-2-1-1-0 (imutável e verificado)', desc: 'Além do 3-2-1, uma cópia imutável/offline contra ransomware e verificação automática com zero erros.' }
+      ]
+    },
+    {
+      id: 'q8', pillar: 'backup', short: 'Restauração e RPO/RTO',
+      title: 'Com que frequência a restauração é testada e quais são as metas de RPO/RTO?',
+      help: 'RPO: quanto de dados a empresa aceita perder. RTO: em quanto tempo o sistema precisa voltar a funcionar.',
+      options: [
+        { score: 0, label: 'Nunca testamos; sem metas', desc: 'Nunca houve teste de restauração e RPO/RTO não são definidos.' },
+        { score: 1, label: 'Testes raros e metas informais', desc: 'Restauração apenas quando ocorre um incidente; metas "de cabeça", sem documentação.' },
+        { score: 2, label: 'Teste anual; metas definidas', desc: 'RPO/RTO documentados, mas validados apenas uma vez por ano.' },
+        { score: 3, label: 'Testes trimestrais documentados', desc: 'Restaurações periódicas com relatório; RPO ≤ 24h e RTO ≤ 8h validados para sistemas críticos.' },
+        { score: 4, label: 'DR ensaiado e testes automatizados', desc: 'Plano de recuperação de desastres ensaiado, testes mensais/automatizados, RPO ≤ 1h e RTO ≤ 4h.' }
+      ]
+    }
+  ];
+
+  /* =====================================================================
+   * 5. FAIXAS DE CLASSIFICAÇÃO, NÍVEIS DE RISCO E MODELOS DE NUVEM
+   * ===================================================================== */
+
+  // Selo de classificação do Score Geral (avaliado do maior "min" para o menor)
+  const CLASSIFICATION_BANDS = [
+    { min: 80, label: 'Líder Digital', range: '80–100%', color: '#047857', bg: '#d1fae5', ring: '#10b981', icon: 'award',
+      desc: 'Infraestrutura madura e pronta para migração acelerada e modernização.' },
+    { min: 60, label: 'Estruturado', range: '60–79%', color: '#0369a1', bg: '#e0f2fe', ring: '#0ea5e9', icon: 'circle-check',
+      desc: 'Boa base técnica; a migração é viável com ajustes pontuais.' },
+    { min: 40, label: 'Em Transição', range: '40–59%', color: '#92400e', bg: '#fef3c7', ring: '#f59e0b', icon: 'trending-up',
+      desc: 'Fundamentos parciais; é preciso fortalecer pilares antes de migrar cargas críticas.' },
+    { min: 0, label: 'Crítico', range: '0–39%', color: '#b91c1c', bg: '#fee2e2', ring: '#ef4444', icon: 'triangle-alert',
+      desc: 'Lacunas estruturais relevantes; priorize estabilização antes de qualquer migração.' }
+  ];
+
+  // Níveis de risco operacional (índice de risco = 100 − prontidão ponderada pelo risco)
+  const RISK_LEVELS = [
+    { key: 'baixo', label: 'Baixo', max: 24, color: '#047857', bg: '#d1fae5', timeFactor: 0.9,
+      desc: 'Migração pode seguir em ondas com automação e janelas de mudança padrão.' },
+    { key: 'moderado', label: 'Moderado', max: 44, color: '#0369a1', bg: '#e0f2fe', timeFactor: 1.0,
+      desc: 'Migração viável com plano de rollback e validação por etapas.' },
+    { key: 'alto', label: 'Alto', max: 64, color: '#b45309', bg: '#ffedd5', timeFactor: 1.3,
+      desc: 'Exige fase prévia de estabilização, execução em paralelo e critérios rígidos de Go/No-Go.' },
+    { key: 'critico', label: 'Crítico', max: 100, color: '#b91c1c', bg: '#fee2e2', timeFactor: 1.6,
+      desc: 'Alto potencial de indisponibilidade ou perda de dados; não migre cargas críticas antes de mitigar os riscos.' }
+  ];
+
+  // Modelos de nuvem possíveis
+  const CLOUD_MODELS = {
+    SaaS: { key: 'SaaS', name: 'SaaS', fullName: 'Software como Serviço', icon: 'layers', color: '#0369a1', timeFactor: 0.8,
+      description: 'Consumo de aplicações prontas (ERP, CRM, e-mail, colaboração) gerenciadas pelo fornecedor. Menor esforço operacional e adoção rápida.' },
+    PaaS: { key: 'PaaS', name: 'PaaS', fullName: 'Plataforma como Serviço', icon: 'cpu', color: '#6d28d9', timeFactor: 1.2,
+      description: 'A empresa foca no código e nos dados; o provedor gerencia sistema operacional, runtime, banco de dados e escalabilidade.' },
+    IaaS: { key: 'IaaS', name: 'IaaS', fullName: 'Infraestrutura como Serviço', icon: 'server', color: '#0f766e', timeFactor: 1.0,
+      description: 'Servidores virtuais, rede e armazenamento sob demanda, permitindo migrar (rehost) sistemas existentes com mínima alteração.' },
+    Hibrida: { key: 'Hibrida', name: 'Nuvem Híbrida', fullName: 'Abordagem Híbrida', icon: 'cloud-cog', color: '#9a3412', timeFactor: 1.15,
+      description: 'Combina ambiente local (ou nuvem privada) com nuvem pública: cargas sensíveis ou dependentes de baixa latência ficam on-premises e o restante migra gradualmente.' }
+  };
+  // Critério de desempate: modelo de menor complexidade operacional vence
+  const MODEL_TIEBREAK_ORDER = ['SaaS', 'PaaS', 'IaaS', 'Hibrida'];
+
+  /* =====================================================================
+   * 6. BASE DE RECOMENDAÇÕES (Plano de Boas Práticas do Especialista)
+   *    Faixas: baixa (< 40%), media (40–69%), alta (≥ 70%).
+   *    tag → tema principal (Migração, Backup 3-2-1, Alta Disponibilidade,
+   *          ERP/CRM, IA, LGPD, Segurança, FinOps).
+   * ===================================================================== */
+  const RECOMMENDATIONS = {
+    servidores: {
+      baixa: [
+        { tag: 'Migração', title: 'Inventário e mapa de dependências', text: 'Levante todos os servidores, aplicações, versões de sistema operacional e interdependências (Azure Migrate, AWS Application Discovery Service ou uma CMDB simples) antes de mover qualquer carga.' },
+        { tag: 'Migração', title: 'Plano de saída do hardware obsoleto', text: 'Priorize a migração das cargas hospedadas em equipamentos com mais de 6 anos ou sem garantia e evite renovar hardware on-premises: direcione o orçamento de CAPEX para o modelo OPEX da nuvem.' },
+        { tag: 'ERP/CRM', title: 'Estratégia para sistemas legados (6 Rs)', text: 'Classifique cada sistema em Rehost, Replatform, Refactor, Repurchase, Retire ou Retain. ERPs legados sem suporte são fortes candidatos a Repurchase (ERP em SaaS) integrado ao CRM por APIs.' },
+        { tag: 'Migração', title: 'Virtualize antes de migrar', text: 'Converta servidores físicos em máquinas virtuais (P2V) para simplificar o lift-and-shift, padronizar backups e reduzir a janela de indisponibilidade no cutover.' }
+      ],
+      media: [
+        { tag: 'Migração', title: 'Conclua a virtualização e padronize imagens', text: 'Finalize a virtualização, elimine versões de SO sem suporte e crie imagens padrão (golden images) para provisionar ambientes de forma reprodutível.' },
+        { tag: 'FinOps', title: 'Rightsizing baseado em métricas', text: 'Colete pelo menos 30 dias de uso de CPU, memória e disco para dimensionar corretamente as instâncias em nuvem e evitar superprovisionamento.' },
+        { tag: 'ERP/CRM', title: 'Integração ERP/CRM via APIs ou iPaaS', text: 'Substitua integrações por troca de arquivos ou acesso direto ao banco por APIs REST ou plataforma de integração (iPaaS), desacoplando os sistemas para a migração.' },
+        { tag: 'Migração', title: 'Infraestrutura como Código (IaC)', text: 'Adote Terraform, Bicep ou CloudFormation para criar a landing zone e os ambientes, garantindo padronização, auditoria e recuperação rápida.' }
+      ],
+      alta: [
+        { tag: 'Migração', title: 'Modernização para PaaS e containers', text: 'Avalie Kubernetes gerenciado (AKS, EKS, GKE), bancos de dados gerenciados e serverless para reduzir a gestão de infraestrutura e acelerar entregas.' },
+        { tag: 'Alta Disponibilidade', title: 'Alta disponibilidade multizona', text: 'Distribua as cargas críticas em pelo menos duas zonas de disponibilidade, com balanceador de carga e auto scaling.' },
+        { tag: 'FinOps', title: 'Governança de custos (FinOps)', text: 'Implemente tags de custo, orçamentos com alertas, instâncias reservadas/Savings Plans e desligamento automático de ambientes não produtivos.' },
+        { tag: 'IA', title: 'AIOps e automações com IA', text: 'Use IA para detecção de anomalias, previsão de capacidade e copilotos operacionais que automatizem tarefas repetitivas de sustentação.' }
+      ]
+    },
+    rede: {
+      baixa: [
+        { tag: 'Alta Disponibilidade', title: 'Link dedicado com SLA', text: 'Contrate link empresarial dedicado com SLA, IP fixo e banda dimensionada pelo tráfego medido e pelo volume da sincronização inicial dos dados.' },
+        { tag: 'Alta Disponibilidade', title: 'Redundância de operadora com failover', text: 'Adicione um segundo link de operadora distinta com failover automático (SD-WAN ou roteador dual-WAN). Sem isso, a nuvem se torna inacessível a cada queda de internet.' },
+        { tag: 'Segurança', title: 'Firewall de nova geração (NGFW)', text: 'Substitua o roteador da operadora por um NGFW com IPS, filtragem web e VPN com MFA; elimine qualquer RDP exposto na internet.' },
+        { tag: 'Segurança', title: 'Segmentação básica da rede', text: 'Separe em VLANs os servidores, usuários, visitantes e dispositivos IoT/OT para conter incidentes e ransomware.' }
+      ],
+      media: [
+        { tag: 'Alta Disponibilidade', title: 'Failover automático e monitoramento de links', text: 'Automatize a troca de links e monitore latência, perda de pacotes e disponibilidade com alertas para a equipe.' },
+        { tag: 'Migração', title: 'Conectividade privada com a nuvem', text: 'Implemente VPN site-to-site redundante ou conexão dedicada (ExpressRoute, Direct Connect, Cloud Interconnect) para as cargas críticas.' },
+        { tag: 'Segurança', title: 'Revisão periódica de regras e IPS ativo', text: 'Revise as regras do firewall trimestralmente, mantenha IPS/IDS e filtragem DNS ativos e centralize os logs.' },
+        { tag: 'Segurança', title: 'Início da jornada Zero Trust', text: 'Exija MFA em todos os acessos e avalie ZTNA no lugar da VPN tradicional, com acesso por identidade e postura do dispositivo.' }
+      ],
+      alta: [
+        { tag: 'Segurança', title: 'Arquitetura SASE/SSE', text: 'Consolide segurança de rede e de acesso em serviço de nuvem (SASE/SSE), com políticas unificadas para escritórios e trabalho remoto.' },
+        { tag: 'Alta Disponibilidade', title: 'Testes de resiliência de rede', text: 'Simule periodicamente a queda de links e de regiões e mantenha observabilidade de rede ponta a ponta.' },
+        { tag: 'Segurança', title: 'Microsegmentação em nuvem', text: 'Use security groups, private endpoints e políticas por identidade para restringir o tráfego leste-oeste entre as cargas.' },
+        { tag: 'IA', title: 'Segurança com IA (SIEM/XDR e SOAR)', text: 'Adote detecção de ameaças baseada em IA e playbooks de resposta automatizada para reduzir o tempo de contenção de incidentes.' }
+      ]
+    },
+    dados: {
+      baixa: [
+        { tag: 'Migração', title: 'Inventário e centralização dos dados', text: 'Elimine dados em PCs e pendrives e centralize-os em repositório corporativo com controle de acesso antes de iniciar a migração.' },
+        { tag: 'LGPD', title: 'Mapeamento de dados pessoais (ROPA)', text: 'Elabore o Registro das Operações de Tratamento, identifique as bases legais, nomeie o Encarregado (DPO) e publique a política de privacidade.' },
+        { tag: 'FinOps', title: 'Limpeza de dados antes de migrar', text: 'Remova dados redundantes, obsoletos e triviais (ROT): menos dados significa transferência mais rápida e menor custo de armazenamento em nuvem.' },
+        { tag: 'Migração', title: 'Monitoramento de capacidade', text: 'Configure alertas de ocupação acima de 80% e projete o crescimento para 24 meses, base para dimensionar o armazenamento em nuvem.' }
+      ],
+      media: [
+        { tag: 'LGPD', title: 'Classificação da informação e DLP', text: 'Classifique os dados (Público, Interno, Confidencial, Restrito), aplique rótulos e políticas de prevenção contra vazamento (DLP).' },
+        { tag: 'LGPD', title: 'Criptografia e escolha da região', text: 'Ative criptografia em repouso e em trânsito com gestão de chaves (KMS) e avalie a região dos dados, observando as regras de transferência internacional (LGPD, art. 33).' },
+        { tag: 'FinOps', title: 'Política de retenção e ciclo de vida', text: 'Defina camadas de armazenamento quente, frio e arquivo com regras automáticas de ciclo de vida para otimizar custos.' },
+        { tag: 'LGPD', title: 'Contratos com provedores e RIPD', text: 'Inclua cláusulas de proteção de dados nos contratos com provedores (operadores) e atualize o Relatório de Impacto (RIPD) para a nova arquitetura.' }
+      ],
+      alta: [
+        { tag: 'Migração', title: 'Plataforma de dados moderna', text: 'Estruture um data lake/lakehouse em nuvem para BI e analytics, integrando dados de ERP, CRM e operação.' },
+        { tag: 'IA', title: 'IA generativa com governança', text: 'Implemente assistentes de IA (RAG) sobre bases internas com controle de acesso, anonimização/pseudonimização e trilha de auditoria.' },
+        { tag: 'LGPD', title: 'Automação da privacidade', text: 'Automatize a gestão de consentimento e o atendimento aos direitos dos titulares (acesso, correção, eliminação).' },
+        { tag: 'LGPD', title: 'Auditoria contínua de dados sensíveis', text: 'Monitore acessos a dados pessoais sensíveis e mantenha logs imutáveis para comprovar conformidade à ANPD.' }
+      ]
+    },
+    backup: {
+      baixa: [
+        { tag: 'Backup 3-2-1', title: 'Implemente a regra 3-2-1 imediatamente', text: '3 cópias dos dados, em 2 mídias diferentes, com 1 cópia fora do local (nuvem). É pré-requisito antes de mover qualquer carga para a nuvem.' },
+        { tag: 'Backup 3-2-1', title: 'Cópia imutável contra ransomware', text: 'Mantenha ao menos uma cópia imutável (Object Lock/WORM) ou offline, inacessível com as credenciais do domínio.' },
+        { tag: 'Alta Disponibilidade', title: 'Defina RPO e RTO por sistema', text: 'Realize uma análise de impacto no negócio (BIA) simplificada com as áreas para definir quanto de dados se pode perder e em quanto tempo cada sistema deve voltar.' },
+        { tag: 'Backup 3-2-1', title: 'Primeiro teste de restauração documentado', text: 'Restaure ERP, arquivos e e-mail em ambiente isolado, cronometre o tempo e compare com o RTO desejado.' },
+        { tag: 'Backup 3-2-1', title: 'Backup de aplicações SaaS', text: 'Microsoft 365 e Google Workspace não substituem backup: contrate backup dedicado para e-mails, arquivos e sites.' }
+      ],
+      media: [
+        { tag: 'Backup 3-2-1', title: 'Evolua para 3-2-1-1-0', text: 'Acrescente uma cópia imutável e verificação automática com zero erros de restauração.' },
+        { tag: 'Alta Disponibilidade', title: 'Testes de restauração trimestrais', text: 'Formalize testes trimestrais com relatório de tempo real versus RTO e plano de ação para os desvios.' },
+        { tag: 'Migração', title: 'Backup como Serviço e replicação', text: 'Adote BaaS em nuvem com replicação para uma região secundária, reduzindo a dependência de mídias locais.' },
+        { tag: 'Alta Disponibilidade', title: 'Plano de Continuidade de Negócios (PCN)', text: 'Documente o PCN e runbooks de incidentes com papéis, contatos e procedimentos de acionamento.' }
+      ],
+      alta: [
+        { tag: 'Alta Disponibilidade', title: 'DRaaS com failover orquestrado', text: 'Implemente recuperação de desastres como serviço com failover orquestrado e ensaios semestrais (game days).' },
+        { tag: 'Alta Disponibilidade', title: 'Arquitetura ativo-ativo ou multirregião', text: 'Para sistemas tier 1, avalie arquitetura ativo-ativo ou multirregião para RTO próximo de zero.' },
+        { tag: 'Backup 3-2-1', title: 'Conformidade automatizada de backup', text: 'Automatize verificações de integridade e relatórios de conformidade das políticas de backup para auditorias.' },
+        { tag: 'IA', title: 'Resiliência preditiva com IA', text: 'Use IA e engenharia de caos para antecipar falhas, detectar comportamento anômalo de ransomware e validar a resiliência continuamente.' }
+      ]
+    }
+  };
+
+  // Cores dos selos de tema das recomendações
+  const TAG_STYLES = {
+    'Migração': { color: '#075985', bg: '#e0f2fe' },
+    'Backup 3-2-1': { color: '#9a3412', bg: '#ffedd5' },
+    'Alta Disponibilidade': { color: '#065f46', bg: '#d1fae5' },
+    'ERP/CRM': { color: '#3730a3', bg: '#e0e7ff' },
+    'IA': { color: '#6b21a8', bg: '#f3e8ff' },
+    'LGPD': { color: '#115e59', bg: '#ccfbf1' },
+    'Segurança': { color: '#991b1b', bg: '#fee2e2' },
+    'FinOps': { color: '#854d0e', bg: '#fef9c3' }
+  };
+
+  /* =====================================================================
+   * 7. BASE DO ROTEIRO DE MIGRAÇÃO
+   *    baseWeeks é ajustado por: porte × nível de risco × modelo de nuvem.
+   *    A fase "Estabilização" só é incluída quando o risco é Alto ou Crítico.
+   * ===================================================================== */
+  const ROADMAP_PHASES = [
+    {
+      id: 'avaliacao', name: 'Avaliação', icon: 'search', baseWeeks: 2,
+      objective: 'Entender o ambiente atual, as dependências e os objetivos de negócio.',
+      actions: [
+        'Kick-off com patrocinador executivo e definição de objetivos, escopo e indicadores de sucesso.',
+        'Inventário de servidores, aplicações, integrações (ERP/CRM) e volume de dados.',
+        'Business case com TCO comparativo (on-premises × nuvem) e definição de RPO/RTO por sistema.'
+      ],
+      deliverable: 'Inventário de ativos, mapa de dependências e business case aprovado.'
+    },
+    {
+      id: 'estabilizacao', name: 'Estabilização e Mitigação de Riscos', icon: 'shield-alert', baseWeeks: 4, onlyForRisk: ['alto', 'critico'],
+      objective: 'Eliminar os riscos que tornariam a migração insegura.',
+      actions: [], // preenchidas dinamicamente conforme os pilares mais fracos
+      deliverable: 'Riscos críticos mitigados, backup validado e aprovação formal (Go/No-Go) para seguir.'
+    },
+    {
+      id: 'preparacao', name: 'Preparação', icon: 'wrench', baseWeeks: 3,
+      objective: 'Construir a fundação segura na nuvem e o plano detalhado de migração.',
+      actions: [
+        'Criação da landing zone: contas/assinaturas, rede, identidade (SSO + MFA), políticas e tags de custo.',
+        'Definição das ondas de migração por criticidade e grupo de dependência.',
+        'Plano de comunicação, treinamento das equipes e matriz de responsabilidades (RACI).'
+      ],
+      deliverable: 'Landing zone operacional e plano de ondas aprovado.'
+    },
+    {
+      id: 'piloto', name: 'Piloto', icon: 'flask-conical', baseWeeks: 3,
+      objective: 'Validar a abordagem com uma carga de baixa criticidade.',
+      actions: [
+        'Migração de uma carga de baixa criticidade com testes de desempenho, segurança e restauração.',
+        'Medição de latência para usuários e integrações e ajuste da arquitetura.'
+      ],
+      deliverable: 'Relatório do piloto com lições aprendidas e runbook de migração validado.'
+    },
+    {
+      id: 'migracao', name: 'Migração', icon: 'cloud-upload', baseWeeks: 6,
+      objective: 'Migrar as cargas em ondas com segurança e mínima indisponibilidade.',
+      actions: [
+        'Execução das ondas de migração com checklist de cutover e validação pelos usuários-chave.',
+        'Backup completo e verificado imediatamente antes de cada cutover.'
+      ],
+      deliverable: 'Cargas em produção na nuvem e servidores antigos descomissionados com segurança.'
+    },
+    {
+      id: 'otimizacao', name: 'Otimização', icon: 'trending-up', baseWeeks: 4, continuous: true,
+      objective: 'Reduzir custos, elevar a resiliência e capturar valor da nuvem.',
+      actions: [
+        'FinOps: rightsizing, instâncias reservadas, desligamento programado e revisão mensal de custos.',
+        'Revisão de segurança, conformidade LGPD e testes periódicos de recuperação de desastres.',
+        'Automações com IA (AIOps, copilotos e integrações inteligentes entre ERP e CRM).'
+      ],
+      deliverable: 'Ciclo contínuo de melhoria com indicadores de custo, disponibilidade e segurança.'
+    }
+  ];
+
+  // Ações específicas por modelo de nuvem, inseridas nas fases correspondentes
+  const MODEL_ROADMAP_ACTIONS = {
+    SaaS: {
+      preparacao: 'Seleção de fornecedores SaaS (ERP, CRM, colaboração) avaliando SLA, localização dos dados, portabilidade e conformidade LGPD.',
+      piloto: 'Piloto do SaaS escolhido em um departamento, com migração de cadastros e validação dos processos.',
+      migracao: 'Migração dos dados históricos, integração ERP ↔ CRM por conectores nativos e desativação dos servidores locais.'
+    },
+    PaaS: {
+      preparacao: 'Definição dos serviços gerenciados (banco, filas, App Service/Cloud Run/Elastic Beanstalk) e pipelines CI/CD.',
+      piloto: 'Replatform de uma aplicação não crítica em container ou serviço gerenciado, com observabilidade.',
+      migracao: 'Refatoração progressiva (padrão strangler fig), migração para banco gerenciado e exposição de APIs para integrações.'
+    },
+    IaaS: {
+      preparacao: 'Configuração da replicação de VMs com ferramenta nativa (Azure Migrate, AWS MGN ou Google Migrate to VMs).',
+      piloto: 'Rehost de 1 a 2 servidores de baixa criticidade e validação de desempenho e licenciamento.',
+      migracao: 'Migração em ondas por grupo de dependência, com cutover em janelas planejadas e rightsizing pós-migração.'
+    },
+    Hibrida: {
+      preparacao: 'Definição das cargas que permanecem on-premises (latência, regulação) e conectividade privada redundante com a nuvem.',
+      piloto: 'Piloto com backup/DR em nuvem e uma carga elástica, validando a gestão unificada do ambiente.',
+      migracao: 'Migração das cargas elegíveis, gestão unificada (Azure Arc, AWS Outposts ou Anthos) e identidade federada.'
+    }
+  };
+
+  // Ações de estabilização por pilar fraco (nota abaixo de 50%)
+  const STABILIZATION_ACTIONS = {
+    backup: 'Implantar backup 3-2-1 com cópia imutável em nuvem e executar teste completo de restauração dos sistemas críticos.',
+    rede: 'Contratar link redundante de outra operadora com failover automático e instalar firewall NGFW com VPN e MFA.',
+    servidores: 'Virtualizar os servidores físicos críticos (P2V) e aplicar atualizações de segurança nos sistemas legados.',
+    dados: 'Mapear os dados pessoais (ROPA), nomear o Encarregado (DPO) e restringir acessos por perfil antes de copiar dados para a nuvem.'
+  };
+
+  /* =====================================================================
+   * 8. CASO EXEMPLO (DEMO) — empresa fictícia realista
+   * ===================================================================== */
+  const DEMO_CASE = {
+    companyName: 'Metalúrgica Horizonte Ltda.',
+    sector: 'industria',
+    size: 'media',
+    // Servidores antigos com ERP legado, rede razoável, LGPD informal e backup sem cópia externa
+    answers: { q1: 2, q2: 1, q3: 3, q4: 2, q5: 2, q6: 1, q7: 2, q8: 1 }
+  };
+
+  /* =====================================================================
+   * 9. UTILITÁRIOS
+   * ===================================================================== */
+  const $ = (selector) => document.querySelector(selector);
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let radarChartInstance = null;   // instância atual do gráfico radar
+  let lastDiagnosis = null;        // último resultado calculado
+  let toastTimer = null;
+
+  /** Escapa texto do usuário antes de inserir via innerHTML (evita XSS). */
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /** Renderiza os ícones Lucide recém-inseridos no DOM (se a biblioteca carregou). */
+  function refreshIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons({ attrs: { 'aria-hidden': 'true', focusable: 'false' } });
+    }
+  }
+
+  /** Cor da pontuação de uma alternativa (0 = vermelho … 4 = verde), com contraste AA para texto branco. */
+  function scoreColor(score) {
+    return ['#b91c1c', '#c2410c', '#a16207', '#0369a1', '#047857'][score] || '#475569';
+  }
+
+  /** Cor de uma nota percentual (usada em barras de progresso). */
+  function percentColor(percent) {
+    if (percent >= 80) return '#059669';
+    if (percent >= 60) return '#0284c7';
+    if (percent >= 40) return '#d97706';
+    return '#dc2626';
+  }
+
+  function getPillar(id) { return PILLARS.find((p) => p.id === id); }
+  function getSector(id) { return SECTORS.find((s) => s.id === id); }
+  function getSize(id) { return SIZES.find((s) => s.id === id); }
+
+  function showToast(message) {
+    const toast = $('#toast');
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
+  }
+
+  function formatDate(date) {
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) +
+      ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function generateReportId(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+    const random = Math.floor(Math.random() * 9000 + 1000);
+    return `JMB-${stamp}-${random}`;
+  }
+
+  /* =====================================================================
+   * 10. RENDERIZAÇÃO DO FORMULÁRIO
+   * ===================================================================== */
+
+  /** Preenche as listas suspensas de Setor e Porte. */
+  function renderProfileOptions() {
+    const sectorSelect = $('#sector');
+    SECTORS.forEach((s) => sectorSelect.insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
+    const sizeSelect = $('#size');
+    SIZES.forEach((s) => sizeSelect.insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
+  }
+
+  /** Gera os blocos de pilares com as perguntas e alternativas (radio buttons acessíveis). */
+  function renderQuestions() {
+    const container = $('#questionsContainer');
+    let questionNumber = 0;
+
+    container.innerHTML = PILLARS.map((pillar) => {
+      const pillarQuestions = QUESTIONS.filter((q) => q.pillar === pillar.id);
+      const questionsHtml = pillarQuestions.map((q) => {
+        questionNumber += 1;
+        const optionsHtml = q.options.map((opt) => `
+          <label class="block cursor-pointer">
+            <input type="radio" name="${q.id}" value="${opt.score}" class="peer sr-only" />
+            <span class="flex items-start gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 transition hover:border-sky-300 hover:bg-sky-50/40 peer-checked:border-brand-600 peer-checked:bg-sky-50 peer-focus-visible:ring-4 peer-focus-visible:ring-sky-300">
+              <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-extrabold text-white" style="background:${scoreColor(opt.score)}" aria-hidden="true">${opt.score}</span>
+              <span class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span class="font-semibold text-slate-900">${escapeHtml(opt.label)}</span>
+                  <span class="text-xs font-semibold text-slate-600">Pontuação: ${opt.score}/${APP_CONFIG.maxOptionScore}</span>
+                </span>
+                <span class="mt-0.5 block text-sm leading-snug text-slate-600">${escapeHtml(opt.desc)}</span>
+              </span>
+            </span>
+          </label>`).join('');
+
+        return `
+          <fieldset id="fs-${q.id}" class="question rounded-2xl border-2 border-transparent p-1 transition sm:p-2" data-qid="${q.id}" aria-describedby="help-${q.id}">
+            <legend class="sr-only">Pergunta ${questionNumber}: ${escapeHtml(q.title)}</legend>
+            <p class="flex items-start gap-2 text-base font-bold text-slate-900" aria-hidden="true">
+              <span class="mt-0.5 grid h-6 min-w-[1.5rem] place-items-center rounded-full bg-slate-900 px-1.5 text-xs text-white">${questionNumber}</span>
+              <span>${escapeHtml(q.title)}</span>
+            </p>
+            <p id="help-${q.id}" class="mb-3 ml-8 mt-1 text-sm text-slate-600">${escapeHtml(q.help)}</p>
+            <p class="question-error-msg mb-3 ml-8 hidden items-center gap-1.5 text-sm font-semibold text-red-700">
+              <i data-lucide="triangle-alert" class="h-4 w-4"></i> Selecione uma alternativa para esta pergunta.
+            </p>
+            <div class="grid gap-2">${optionsHtml}</div>
+          </fieldset>`;
+      }).join('');
+
+      return `
+        <section class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="pillar-title-${pillar.id}">
+          <header class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-start gap-3">
+              <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style="background:${pillar.color}">
+                <i data-lucide="${pillar.icon}" class="h-6 w-6"></i>
+              </span>
+              <div>
+                <h2 id="pillar-title-${pillar.id}" class="text-lg font-bold text-slate-900">${escapeHtml(pillar.name)}</h2>
+                <p class="text-sm text-slate-600">${escapeHtml(pillar.description)}</p>
+              </div>
+            </div>
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Peso no score: ${Math.round(pillar.weight * 100)}%</span>
+          </header>
+          <div class="space-y-6">${questionsHtml}</div>
+        </section>`;
+    }).join('');
+  }
+
+  /* =====================================================================
+   * 11. LEITURA, PROGRESSO E VALIDAÇÃO DO FORMULÁRIO
+   * ===================================================================== */
+
+  /** Lê o perfil da empresa. */
+  function collectProfile() {
+    return {
+      companyName: $('#companyName').value.trim(),
+      sector: $('#sector').value,
+      size: $('#size').value
+    };
+  }
+
+  /** Lê as respostas marcadas. Perguntas sem resposta ficam como null. */
+  function collectAnswers() {
+    const answers = {};
+    QUESTIONS.forEach((q) => {
+      const checked = document.querySelector(`input[name="${q.id}"]:checked`);
+      answers[q.id] = checked ? Number(checked.value) : null;
+    });
+    return answers;
+  }
+
+  /** Atualiza a barra de progresso e remove o destaque de erro das perguntas respondidas. */
+  function updateProgress() {
+    const answers = collectAnswers();
+    const answered = Object.values(answers).filter((v) => v !== null).length;
+    const total = QUESTIONS.length;
+    $('#progressFill').style.width = `${(answered / total) * 100}%`;
+    $('#progressText').textContent = `${answered} de ${total} perguntas respondidas`;
+    $('#progressBar').setAttribute('aria-valuenow', String(answered));
+    QUESTIONS.forEach((q) => {
+      if (answers[q.id] !== null) $(`#fs-${q.id}`).classList.remove('question-error');
+    });
+  }
+
+  /** Marca/desmarca o erro de um campo do perfil. */
+  function setFieldError(fieldId, hasError) {
+    const field = $(`#${fieldId}`);
+    const msg = $(`#${fieldId}Error`);
+    msg.classList.toggle('hidden', !hasError);
+    field.setAttribute('aria-invalid', hasError ? 'true' : 'false');
+    field.classList.toggle('border-red-600', hasError);
+    field.classList.toggle('border-slate-300', !hasError);
+  }
+
+  /**
+   * Valida perfil e respostas. Retorna true quando tudo está preenchido.
+   * Caso contrário, exibe uma mensagem amigável listando o que falta,
+   * com atalhos para cada pendência.
+   */
+  function validateForm(profile, answers) {
+    const missingProfile = [];
+    if (!profile.companyName) missingProfile.push({ id: 'companyName', label: 'Nome da Empresa' });
+    if (!profile.sector) missingProfile.push({ id: 'sector', label: 'Setor' });
+    if (!profile.size) missingProfile.push({ id: 'size', label: 'Porte' });
+    ['companyName', 'sector', 'size'].forEach((id) => setFieldError(id, missingProfile.some((m) => m.id === id)));
+
+    const missingQuestions = [];
+    QUESTIONS.forEach((q, index) => {
+      const missing = answers[q.id] === null;
+      $(`#fs-${q.id}`).classList.toggle('question-error', missing);
+      if (missing) missingQuestions.push({ id: `fs-${q.id}`, label: `Pergunta ${index + 1} – ${q.short} (${getPillar(q.pillar).short})`, focusName: q.id });
+    });
+
+    const box = $('#validationMessage');
+    if (missingProfile.length === 0 && missingQuestions.length === 0) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return true;
+    }
+
+    const items = [
+      ...missingProfile.map((m) => `<li><button type="button" class="rounded text-left font-semibold underline underline-offset-2 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" data-goto-field="${m.id}">${escapeHtml(m.label)}</button></li>`),
+      ...missingQuestions.map((m) => `<li><button type="button" class="rounded text-left font-semibold underline underline-offset-2 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" data-goto-question="${m.focusName}">${escapeHtml(m.label)}</button></li>`)
+    ].join('');
+
+    const qCount = missingQuestions.length;
+    const qText = qCount > 0 ? `${qCount === 1 ? 'Falta responder 1 pergunta' : `Faltam ${qCount} perguntas`}` : '';
+    const pText = missingProfile.length > 0 ? `${qText ? ' e ' : ''}${missingProfile.length === 1 ? 'falta 1 dado do perfil' : `faltam ${missingProfile.length} dados do perfil`}` : '';
+
+    box.innerHTML = `
+      <div class="flex items-start gap-3">
+        <i data-lucide="triangle-alert" class="mt-0.5 h-6 w-6 shrink-0 text-amber-700"></i>
+        <div>
+          <p class="font-bold">Quase lá! ${escapeHtml((qText + pText).replace(/^./, (c) => c.toUpperCase()))} para gerar um laudo confiável.</p>
+          <p class="mt-1 text-sm">Clique em um item para ir direto até ele:</p>
+          <ul class="mt-2 grid list-disc gap-x-10 gap-y-1 pl-5 text-sm lg:grid-cols-2">${items}</ul>
+        </div>
+      </div>`;
+    box.classList.remove('hidden');
+    refreshIcons();
+    box.focus();
+    return false;
+  }
+
+  /** Atalhos da mensagem de validação: leva o foco ao campo/pergunta pendente. */
+  function handleValidationShortcut(event) {
+    const fieldBtn = event.target.closest('[data-goto-field]');
+    const questionBtn = event.target.closest('[data-goto-question]');
+    if (fieldBtn) {
+      const el = $(`#${fieldBtn.dataset.gotoField}`);
+      el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+      el.focus({ preventScroll: true });
+    } else if (questionBtn) {
+      const fs = $(`#fs-${questionBtn.dataset.gotoQuestion}`);
+      fs.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+      const firstRadio = fs.querySelector('input[type="radio"]');
+      if (firstRadio) firstRadio.focus({ preventScroll: true });
+    }
+  }
+
+  /* =====================================================================
+   * 12. LÓGICA DE CÁLCULO (documentada)
+   * ===================================================================== */
+
+  /**
+   * NOTA DE CADA PILAR (0–100%)
+   *   nota = (soma das pontuações das perguntas do pilar) / (nº de perguntas × 4) × 100
+   *   Ex.: respostas 2 e 1 → (2 + 1) / 8 × 100 = 37,5%
+   */
+  function calculatePillarScores(answers) {
+    return PILLARS.map((pillar) => {
+      const pillarQuestions = QUESTIONS.filter((q) => q.pillar === pillar.id);
+      const obtained = pillarQuestions.reduce((sum, q) => sum + answers[q.id], 0);
+      const max = pillarQuestions.length * APP_CONFIG.maxOptionScore;
+      const exact = (obtained / max) * 100;
+      return { ...pillar, obtained, max, exact, percent: Math.round(exact), tier: getTier(exact) };
+    });
+  }
+
+  /**
+   * SCORE GERAL DE PRONTIDÃO PARA NUVEM (0–100%)
+   *   score = Σ (nota do pilar × peso do pilar) / Σ pesos
+   *   Pesos (PILLARS.weight): Servidores 25% · Rede 20% · Dados 25% · Backup 30%
+   */
+  function calculateOverallScore(pillarScores) {
+    const totalWeight = pillarScores.reduce((s, p) => s + p.weight, 0);
+    const weighted = pillarScores.reduce((s, p) => s + p.exact * p.weight, 0);
+    return Math.round(weighted / totalWeight);
+  }
+
+  /**
+   * SELO DE CLASSIFICAÇÃO
+   *   Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100%
+   */
+  function classifyScore(score) {
+    return CLASSIFICATION_BANDS.find((band) => score >= band.min);
+  }
+
+  /** Faixa da nota de um pilar para o Plano de Boas Práticas: baixa (<40), média (40–69), alta (≥70). */
+  function getTier(percent) {
+    if (percent < 40) return 'baixa';
+    if (percent < 70) return 'media';
+    return 'alta';
+  }
+
+  /**
+   * NÍVEL DE RISCO OPERACIONAL DA MIGRAÇÃO
+   *   1) Prontidão ponderada pelo risco = Σ (nota do pilar × riskWeight)
+   *      riskWeight: Backup 35% · Rede 30% · Servidores 20% · Dados 15%
+   *   2) Índice de risco = 100 − prontidão ponderada pelo risco
+   *   3) Nível pelo índice: Baixo ≤ 24 · Moderado 25–44 · Alto 45–64 · Crítico ≥ 65
+   *   4) Agravantes (regras de segurança):
+   *      a) Backup inexistente (Q7 = 0) ou restauração nunca testada (Q8 = 0) → nível mínimo "Alto"
+   *      b) Pilar Rede abaixo de 25% → nível mínimo "Alto" (a nuvem dependerá de um link frágil)
+   *      c) Backup e Rede ambos abaixo de 40% → nível mínimo "Crítico"
+   *      d) Setor regulado (Saúde, Financeiro, Governo) com LGPD ≤ 1 (Q6) → sobe 1 nível
+   */
+  function calculateOperationalRisk(pillarScores, answers, profile) {
+    const byId = Object.fromEntries(pillarScores.map((p) => [p.id, p]));
+    const totalRiskWeight = pillarScores.reduce((s, p) => s + p.riskWeight, 0);
+    const riskReadiness = pillarScores.reduce((s, p) => s + p.exact * p.riskWeight, 0) / totalRiskWeight;
+    const index = Math.round(100 - riskReadiness);
+
+    let levelIndex = RISK_LEVELS.findIndex((level) => index <= level.max);
+    const baseLevelIndex = levelIndex;
+    const factors = [];
+    const raiseTo = (minIndex) => { if (levelIndex < minIndex) levelIndex = minIndex; };
+
+    // Fatores descritivos (pilares com maior peso de risco abaixo de 60%)
+    if (byId.backup.exact < 60) factors.push(`Backup e Continuidade em ${byId.backup.percent}%: risco de perda de dados durante o cutover.`);
+    if (byId.rede.exact < 60) factors.push(`Rede e Conectividade em ${byId.rede.percent}%: risco de indisponibilidade dos sistemas após a migração.`);
+    if (byId.servidores.exact < 40) factors.push(`Servidores em ${byId.servidores.percent}%: legados e hardware antigo aumentam a complexidade da migração.`);
+    if (byId.dados.exact < 40) factors.push(`Dados em ${byId.dados.percent}%: baixa governança dificulta a migração e a conformidade LGPD.`);
+
+    // Agravantes
+    if (answers.q7 === 0 || answers.q8 === 0) {
+      raiseTo(2);
+      factors.push('Agravante: backup inexistente ou restauração nunca testada — risco elevado ao menos para "Alto".');
+    }
+    if (byId.rede.exact < 25) {
+      raiseTo(2);
+      factors.push('Agravante: conectividade muito frágil — risco elevado ao menos para "Alto".');
+    }
+    if (byId.backup.exact < 40 && byId.rede.exact < 40) {
+      raiseTo(3);
+      factors.push('Agravante: Backup e Rede simultaneamente abaixo de 40% — risco elevado para "Crítico".');
+    }
+    const sector = getSector(profile.sector);
+    if (sector && sector.regulated && answers.q6 <= 1) {
+      levelIndex = Math.min(RISK_LEVELS.length - 1, levelIndex + 1);
+      factors.push(`Agravante: setor regulado (${sector.label}) com baixa maturidade em LGPD — risco elevado em 1 nível.`);
+    }
+    if (factors.length === 0) factors.push('Nenhum fator crítico identificado: pilares de Backup e Rede em bom nível.');
+
+    return { index, riskReadiness: Math.round(riskReadiness), level: RISK_LEVELS[levelIndex], escalated: levelIndex > baseLevelIndex, factors };
+  }
+
+  /**
+   * RECOMENDAÇÃO DO MODELO DE NUVEM (SaaS, PaaS, IaaS ou Híbrida)
+   *   Sistema de pontuação por regras; vence o modelo com mais pontos.
+   *   Empate → vence o de menor complexidade operacional (SaaS > PaaS > IaaS > Híbrida).
+   *   Regras:
+   *    R1 Porte  → pontos definidos em SIZES[].modelPoints
+   *    R2 Setor  → pontos definidos em SECTORS[].modelPoints
+   *    R3 Legados/virtualização (Q2): 0–1 → IaaS +2 e Híbrida +1 (rehost);  3–4 → PaaS +2 (modernização)
+   *    R4 Hardware obsoleto (Q1 ≤ 1): SaaS +1 e IaaS +1 (urgência em sair do hardware)
+   *    R5 Rede fraca (pilar < 40%): Híbrida +2 (manter cargas críticas locais até reforçar o link)
+   *    R6 Setor regulado + LGPD baixa (Q6 ≤ 1): Híbrida +1 (dados sensíveis sob controle local)
+   *    R7 Score geral ≥ 70%: PaaS +1 (maturidade para modernizar)
+   *    R8 Score geral < 40% em Micro/Pequena: SaaS +2 (reduzir a carga operacional de TI)
+   */
+  function recommendCloudModel(profile, answers, pillarScores, overallScore) {
+    const points = { SaaS: 0, PaaS: 0, IaaS: 0, Hibrida: 0 };
+    const reasons = { SaaS: [], PaaS: [], IaaS: [], Hibrida: [] };
+    const add = (model, value, reason) => { points[model] += value; if (!reasons[model].includes(reason)) reasons[model].push(reason); };
+
+    const size = getSize(profile.size);
+    const sector = getSector(profile.sector);
+    const rede = pillarScores.find((p) => p.id === 'rede');
+
+    // R1 – Porte
+    Object.entries(size.modelPoints).forEach(([m, v]) => add(m, v, size.reason));
+    // R2 – Setor
+    Object.entries(sector.modelPoints).forEach(([m, v]) => add(m, v, sector.reason));
+    // R3 – Legados e virtualização
+    if (answers.q2 <= 1) {
+      add('IaaS', 2, 'Há forte dependência de sistemas legados e pouca virtualização: o rehost (lift-and-shift) em IaaS reduz o risco de alterar sistemas críticos.');
+      add('Hibrida', 1, 'Sistemas legados que não podem ser movidos de imediato podem permanecer on-premises temporariamente.');
+    } else if (answers.q2 >= 3) {
+      add('PaaS', 2, 'O ambiente já é virtualizado/padronizado e com poucos legados, o que viabiliza modernizar para serviços gerenciados (PaaS).');
+    }
+    // R4 – Hardware obsoleto
+    if (answers.q1 <= 1) {
+      add('SaaS', 1, 'O hardware está próximo do fim de vida: migrar evita um novo ciclo de investimento em servidores.');
+      add('IaaS', 1, 'O hardware está próximo do fim de vida: migrar evita um novo ciclo de investimento em servidores.');
+    }
+    // R5 – Rede fraca
+    if (rede.exact < 40) {
+      add('Hibrida', 2, 'A conectividade atual é frágil: manter cargas críticas locais até reforçar link e redundância reduz o risco de parada.');
+    }
+    // R6 – Setor regulado com LGPD baixa
+    if (sector.regulated && answers.q6 <= 1) {
+      add('Hibrida', 1, 'Setor regulado com baixa maturidade em LGPD: dados sensíveis devem permanecer sob controle direto até a governança evoluir.');
+    }
+    // R7 – Maturidade alta
+    if (overallScore >= 70) {
+      add('PaaS', 1, 'A alta maturidade geral permite capturar mais valor com modernização e serviços gerenciados.');
+    }
+    // R8 – Baixa maturidade em empresa pequena
+    if (overallScore < 40 && (profile.size === 'micro' || profile.size === 'pequena')) {
+      add('SaaS', 2, 'Com baixa maturidade de infraestrutura e equipe enxuta, SaaS transfere a operação para o fornecedor.');
+    }
+
+    const ranking = Object.keys(points).sort((a, b) =>
+      (points[b] - points[a]) || (MODEL_TIEBREAK_ORDER.indexOf(a) - MODEL_TIEBREAK_ORDER.indexOf(b)));
+    const winner = ranking[0];
+    const runnerUp = points[ranking[1]] > 0 ? ranking[1] : null;
+
+    return { model: CLOUD_MODELS[winner], points, ranking, reasons: reasons[winner], runnerUp: runnerUp ? CLOUD_MODELS[runnerUp] : null };
+  }
+
+  /** Executa todo o diagnóstico e retorna um objeto consolidado. */
+  function runDiagnosis(profile, answers) {
+    const pillarScores = calculatePillarScores(answers);
+    const overallScore = calculateOverallScore(pillarScores);
+    const classification = classifyScore(overallScore);
+    const risk = calculateOperationalRisk(pillarScores, answers, profile);
+    const cloud = recommendCloudModel(profile, answers, pillarScores, overallScore);
+    const roadmap = buildRoadmap(profile, pillarScores, risk, cloud);
+    const now = new Date();
+    return {
+      profile, answers, pillarScores, overallScore, classification, risk, cloud, roadmap,
+      sector: getSector(profile.sector), size: getSize(profile.size),
+      date: now, dateText: formatDate(now), reportId: generateReportId(now)
+    };
+  }
+
+  /* =====================================================================
+   * 13. ROTEIRO SEGURO DE MIGRAÇÃO
+   *   Prazo de cada fase (semanas) = baseWeeks × fator do porte × fator do risco × fator do modelo
+   *   (arredondado, mínimo de 1 semana). A Otimização é contínua após o período estimado.
+   * ===================================================================== */
+  function buildRoadmap(profile, pillarScores, risk, cloud) {
+    const size = getSize(profile.size);
+    const factor = size.timeFactor * risk.level.timeFactor * cloud.model.timeFactor;
+    const highRisk = risk.level.key === 'alto' || risk.level.key === 'critico';
+    const modelActions = MODEL_ROADMAP_ACTIONS[cloud.model.key];
+    let currentWeek = 1;
+
+    const phases = ROADMAP_PHASES
+      .filter((phase) => !phase.onlyForRisk || phase.onlyForRisk.includes(risk.level.key))
+      .map((phase) => {
+        const weeks = Math.max(1, Math.round(phase.baseWeeks * factor));
+        let actions = [...phase.actions];
+
+        if (phase.id === 'estabilizacao') {
+          const weak = [...pillarScores].filter((p) => p.exact < 50).sort((a, b) => b.riskWeight - a.riskWeight);
+          actions = weak.map((p) => STABILIZATION_ACTIONS[p.id]);
+          if (actions.length === 0) actions.push('Tratar os fatores agravantes apontados no card de Risco Operacional antes de iniciar a preparação.');
+          actions.push('Comitê de riscos semanal com patrocinador executivo e decisão formal de Go/No-Go ao final da fase.');
+        }
+        if (modelActions[phase.id]) actions.push(modelActions[phase.id]);
+        if (phase.id === 'piloto' && highRisk) actions.push('Execução em paralelo (parallel run) com critérios de rollback documentados e aprovados.');
+        if (phase.id === 'migracao') {
+          actions.push(highRisk
+            ? 'Congelamento de mudanças (change freeze), cutover em janela noturna/fim de semana e plano de retorno testado.'
+            : 'Migração em ondas com automação, validação automatizada e janelas de mudança padrão.');
+        }
+        if (phase.id === 'avaliacao' && getSector(profile.sector).regulated) {
+          actions.push('Levantamento dos requisitos regulatórios do setor e da LGPD (localização dos dados, auditoria e contratos).');
+        }
+
+        const startWeek = currentWeek;
+        const endWeek = currentWeek + weeks - 1;
+        currentWeek = endWeek + 1;
+        return { ...phase, weeks, startWeek, endWeek, actions };
+      });
+
+    const totalWeeks = currentWeek - 1;
+    return { phases, totalWeeks, totalMonths: Math.max(1, Math.round(totalWeeks / 4.345)), factor };
+  }
+
+  /* =====================================================================
+   * 14. RENDERIZAÇÃO DO PAINEL DE RESULTADOS
+   * ===================================================================== */
+  function renderDashboard(d) {
+    const companyEsc = escapeHtml(d.profile.companyName);
+    $('#resultsTitle').textContent = d.profile.companyName;
+    $('#resultsMeta').innerHTML = `${escapeHtml(d.sector.label)} · ${escapeHtml(d.size.short)} · Emitido em ${escapeHtml(d.dateText)} · Laudo nº ${escapeHtml(d.reportId)}`;
+    $('#printCompany').textContent = d.profile.companyName;
+    $('#printDate').textContent = d.dateText;
+    $('#printReportId').textContent = d.reportId;
+
+    renderExecutiveSummary(d, companyEsc);
+    renderScoreCard(d);
+    renderRiskCard(d);
+    renderModelCard(d);
+    renderPillarCards(d);
+    renderAlerts(d);
+    renderRecommendations(d);
+    renderRoadmap(d);
+    renderMethodology();
+    renderRadarChart(d);
+    refreshIcons();
+  }
+
+  /** Sumário executivo gerado automaticamente. */
+  function renderExecutiveSummary(d, companyEsc) {
+    const sorted = [...d.pillarScores].sort((a, b) => b.exact - a.exact);
+    const strongest = sorted[0];
+    const weakest = sorted[sorted.length - 1];
+    $('#executiveSummary').innerHTML =
+      `A <strong>${companyEsc}</strong> obteve <strong>Score Geral de Prontidão para Nuvem de ${d.overallScore}%</strong>, ` +
+      `classificado como <strong style="color:${d.classification.color}">${d.classification.label}</strong>, com ` +
+      `<strong style="color:${d.risk.level.color}">risco operacional ${d.risk.level.label.toLowerCase()}</strong> para a migração. ` +
+      `O pilar mais maduro é <strong>${escapeHtml(strongest.name)}</strong> (${strongest.percent}%) e o ponto de maior atenção é ` +
+      `<strong>${escapeHtml(weakest.name)}</strong> (${weakest.percent}%). ` +
+      `Recomenda-se o modelo <strong>${escapeHtml(d.cloud.model.name)}</strong>, com um roteiro estimado de ` +
+      `<strong>${d.roadmap.totalWeeks} semanas (≈ ${d.roadmap.totalMonths} ${d.roadmap.totalMonths === 1 ? 'mês' : 'meses'})</strong> ` +
+      `em ${d.roadmap.phases.length} fases, seguido de otimização contínua.`;
+  }
+
+  /** Card do Score Geral com anel e selo de classificação. */
+  function renderScoreCard(d) {
+    const c = d.classification;
+    const ringStyle = `background: conic-gradient(${c.ring} ${d.overallScore * 3.6}deg, #e2e8f0 0deg);`;
+    $('#scoreCard').innerHTML = `
+      <h3 id="scoreCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
+        <i data-lucide="gauge" class="h-5 w-5 text-brand-600"></i> Score Geral de Prontidão
+      </h3>
+      <div class="mt-4 flex flex-col items-center text-center">
+        <div class="score-ring" style="${ringStyle}" role="img" aria-label="Score geral de ${d.overallScore} por cento">
+          <div class="score-ring-inner">
+            <div>
+              <span class="block text-5xl font-extrabold tracking-tight text-slate-900">${d.overallScore}<span class="text-2xl">%</span></span>
+            </div>
+          </div>
+        </div>
+        <span class="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-extrabold" style="color:${c.color};background:${c.bg};border:1px solid ${c.ring}">
+          <i data-lucide="${c.icon}" class="h-4 w-4"></i> Selo: ${c.label} <span class="font-semibold opacity-80">(${c.range})</span>
+        </span>
+        <p class="mt-3 text-sm text-slate-600">${escapeHtml(c.desc)}</p>
+      </div>
+      <p class="mt-5 text-xs font-bold uppercase tracking-wider text-slate-600">Escala de classificação</p>
+      <ul class="mt-2 space-y-1.5 text-sm">
+        ${[...CLASSIFICATION_BANDS].reverse().map((b) => `
+          <li class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style="${b.label === c.label ? `background:${b.bg};color:${b.color};font-weight:800;outline:1px solid ${b.ring}` : 'color:#475569'}">
+            <span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full" style="background:${b.ring}"></span>${b.label}${b.label === c.label ? ' ← sua empresa' : ''}</span>
+            <span>${b.range}</span>
+          </li>`).join('')}
+      </ul>`;
+  }
+
+  /** Card do Risco Operacional. */
+  function renderRiskCard(d) {
+    const r = d.risk;
+    const segments = RISK_LEVELS.map((lvl) => `
+      <span class="h-2 flex-1 rounded-full" style="background:${lvl.key === r.level.key ? lvl.color : '#e2e8f0'}" title="${lvl.label}"></span>`).join('');
+    $('#riskCard').innerHTML = `
+      <h3 id="riskCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
+        <i data-lucide="shield-alert" class="h-5 w-5" style="color:${r.level.color}"></i> Risco Operacional da Migração
+      </h3>
+      <div class="mt-4 flex items-end justify-between gap-3">
+        <p class="text-4xl font-extrabold" style="color:${r.level.color}">${r.level.label}</p>
+        <p class="text-right text-xs text-slate-600">Índice de risco<br><span class="text-lg font-bold text-slate-800">${r.index}/100</span></p>
+      </div>
+      <div class="mt-3 flex gap-1.5" aria-hidden="true">${segments}</div>
+      <div class="mt-1 flex justify-between text-[11px] font-medium text-slate-600" aria-hidden="true">
+        ${RISK_LEVELS.map((l) => `<span>${l.label}</span>`).join('')}
+      </div>
+      <p class="mt-3 rounded-lg p-2.5 text-sm font-medium" style="background:${r.level.bg};color:${r.level.color}">${escapeHtml(r.level.desc)}</p>
+      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Fatores determinantes</p>
+      <ul class="mt-2 space-y-1.5 text-sm text-slate-700">
+        ${r.factors.map((f) => `<li class="flex gap-2"><span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:${r.level.color}"></span><span>${escapeHtml(f)}</span></li>`).join('')}
+      </ul>`;
+  }
+
+  /** Card do Modelo de Nuvem Recomendado, com justificativa e aderência por modelo. */
+  function renderModelCard(d) {
+    const { model, points, ranking, reasons, runnerUp } = d.cloud;
+    const maxPoints = Math.max(...Object.values(points), 1);
+    const bars = ranking.map((key) => {
+      const m = CLOUD_MODELS[key];
+      const pct = Math.round((points[key] / maxPoints) * 100);
+      return `
+        <div>
+          <div class="flex justify-between text-xs font-semibold text-slate-700"><span>${escapeHtml(m.name)}</span><span>${points[key]} ${points[key] === 1 ? 'pt' : 'pts'}</span></div>
+          <div class="mt-1 h-1.5 rounded-full bg-slate-200"><div class="h-1.5 rounded-full" style="width:${pct}%;background:${m.color}"></div></div>
+        </div>`;
+    }).join('');
+
+    $('#modelCard').innerHTML = `
+      <h3 id="modelCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
+        <i data-lucide="cloud" class="h-5 w-5 text-brand-600"></i> Modelo de Nuvem Recomendado
+      </h3>
+      <div class="mt-4 flex items-center gap-3">
+        <span class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white" style="background:${model.color}">
+          <i data-lucide="${model.icon}" class="h-7 w-7"></i>
+        </span>
+        <div>
+          <p class="text-3xl font-extrabold" style="color:${model.color}">${escapeHtml(model.name)}</p>
+          <p class="text-sm font-semibold text-slate-600">${escapeHtml(model.fullName)}</p>
+        </div>
+      </div>
+      <p class="mt-3 text-sm text-slate-700">${escapeHtml(model.description)}</p>
+      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Justificativa</p>
+      <ul class="mt-2 space-y-1.5 text-sm text-slate-700">
+        ${reasons.slice(0, 4).map((r) => `<li class="flex gap-2"><i data-lucide="circle-check" class="mt-0.5 h-4 w-4 shrink-0" style="color:${model.color}"></i><span>${escapeHtml(r)}</span></li>`).join('')}
+      </ul>
+      ${runnerUp ? `<p class="mt-3 text-sm text-slate-600"><strong>Alternativa complementar:</strong> ${escapeHtml(runnerUp.name)} (${escapeHtml(runnerUp.fullName)}) para cargas específicas.</p>` : ''}
+      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Aderência por modelo</p>
+      <div class="mt-2 space-y-2">${bars}</div>`;
+  }
+
+  /** Cards individuais dos 4 pilares com nota e barra de progresso. */
+  function renderPillarCards(d) {
+    const tierLabel = { baixa: 'Nota baixa', media: 'Nota média', alta: 'Nota alta' };
+    $('#pillarCards').innerHTML = d.pillarScores.map((p) => {
+      const color = percentColor(p.exact);
+      return `
+        <article class="pillar-card card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-2">
+            <span class="grid h-10 w-10 place-items-center rounded-xl text-white" style="background:${p.color}"><i data-lucide="${p.icon}" class="h-5 w-5"></i></span>
+            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Peso ${Math.round(p.weight * 100)}%</span>
+          </div>
+          <h4 class="mt-3 font-bold text-slate-900">${escapeHtml(p.name)}</h4>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-3xl font-extrabold text-slate-900">${p.percent}%</span>
+            <span class="text-xs font-semibold" style="color:${color === '#d97706' ? '#92400e' : color}">${tierLabel[p.tier]} · ${p.obtained}/${p.max} pts</span>
+          </div>
+          <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}" aria-label="Nota do pilar ${escapeHtml(p.name)}">
+            <div class="h-full rounded-full" style="width:${p.percent}%;background:${color}"></div>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  /** Lista de vulnerabilidades: respostas com pontuação 0 ou 1. */
+  function renderAlerts(d) {
+    const alerts = QUESTIONS
+      .filter((q) => d.answers[q.id] <= 1)
+      .map((q) => ({ q, option: q.options.find((o) => o.score === d.answers[q.id]), pillar: getPillar(q.pillar) }))
+      .sort((a, b) => a.option.score - b.option.score || b.pillar.riskWeight - a.pillar.riskWeight);
+
+    $('#alertsList').innerHTML = alerts.length === 0
+      ? `<li class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+           <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-700"></i>
+           <span><strong>Nenhuma vulnerabilidade crítica.</strong> Todas as respostas obtiveram pontuação 2 ou superior.</span>
+         </li>`
+      : alerts.map(({ q, option, pillar }) => `
+          <li class="avoid-break rounded-xl border p-3 text-sm" style="border-color:${option.score === 0 ? '#fca5a5' : '#fdba74'};background:${option.score === 0 ? '#fef2f2' : '#fff7ed'}">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-bold text-slate-900">${escapeHtml(q.short)}</span>
+              <span class="rounded-full px-2 py-0.5 text-xs font-bold text-white" style="background:${scoreColor(option.score)}">${option.score}/4</span>
+            </div>
+            <p class="mt-0.5 text-xs font-semibold text-slate-600">${escapeHtml(pillar.name)}</p>
+            <p class="mt-1 text-slate-700">${escapeHtml(option.label)} — ${escapeHtml(option.desc)}</p>
+          </li>`).join('');
+  }
+
+  /* =====================================================================
+   * 15. GERADOR DO PLANO DE BOAS PRÁTICAS
+   *   Para cada pilar, seleciona as recomendações da faixa da nota
+   *   (baixa/média/alta) e acrescenta 1 recomendação contextual quando
+   *   aplicável (modelo de nuvem, setor regulado ou risco elevado),
+   *   respeitando o limite de 3 a 5 itens.
+   * ===================================================================== */
+  function buildRecommendations(d) {
+    return d.pillarScores.map((p) => {
+      const items = [...RECOMMENDATIONS[p.id][p.tier]];
+      const extra = [];
+
+      if (p.id === 'servidores' && d.cloud.model.key === 'SaaS') {
+        extra.push({ tag: 'ERP/CRM', title: 'ERP e CRM em SaaS integrados', text: 'Ao adotar ERP e CRM em SaaS, priorize fornecedores com APIs abertas e conectores nativos para manter cadastros, pedidos e faturamento sincronizados.' });
+      } else if (p.id === 'servidores' && d.cloud.model.key === 'Hibrida') {
+        extra.push({ tag: 'Migração', title: 'Gestão unificada do ambiente híbrido', text: 'Padronize monitoramento, políticas e identidade entre on-premises e nuvem (Azure Arc, Anthos ou AWS Systems Manager) para evitar silos operacionais.' });
+      }
+      if (p.id === 'dados' && d.sector.regulated) {
+        extra.push({ tag: 'LGPD', title: 'Requisitos regulatórios do setor', text: `No setor ${d.sector.label}, documente localização, retenção e trilhas de auditoria dos dados conforme a LGPD e as normas setoriais aplicáveis.` });
+      }
+      if (p.id === 'backup' && (d.risk.level.key === 'alto' || d.risk.level.key === 'critico') && p.tier !== 'baixa') {
+        extra.push({ tag: 'Backup 3-2-1', title: 'Backup verificado antes de cada cutover', text: 'Dado o risco elevado da migração, condicione cada onda a um backup completo, verificado e com restauração testada.' });
+      }
+      if (p.id === 'rede' && d.cloud.model.key !== 'SaaS' && p.tier === 'baixa') {
+        extra.push({ tag: 'Alta Disponibilidade', title: 'Dimensionamento da migração inicial', text: 'Planeje a carga inicial de dados fora do horário comercial ou via transferência offline (ex.: Azure Data Box, AWS Snowball) para não saturar o link.' });
+      }
+
+      const finalItems = items.concat(extra).slice(0, 5);
+      return { pillar: p, items: finalItems };
+    });
+  }
+
+  function renderRecommendations(d) {
+    const tierInfo = {
+      baixa: { label: 'Nota baixa (0–39%)', color: '#b91c1c', bg: '#fee2e2' },
+      media: { label: 'Nota média (40–69%)', color: '#92400e', bg: '#fef3c7' },
+      alta: { label: 'Nota alta (70–100%)', color: '#047857', bg: '#d1fae5' }
+    };
+    $('#recommendations').innerHTML = buildRecommendations(d).map(({ pillar, items }) => {
+      const t = tierInfo[pillar.tier];
+      return `
+        <article class="rec-block card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <header class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <h4 class="flex items-center gap-2 font-bold text-slate-900">
+              <span class="grid h-8 w-8 place-items-center rounded-lg text-white" style="background:${pillar.color}"><i data-lucide="${pillar.icon}" class="h-4 w-4"></i></span>
+              ${escapeHtml(pillar.name)} <span class="font-semibold text-slate-600">· ${pillar.percent}%</span>
+            </h4>
+            <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="color:${t.color};background:${t.bg}">${t.label}</span>
+          </header>
+          <ol class="mt-3 space-y-3">
+            ${items.map((item, i) => {
+              const tag = TAG_STYLES[item.tag] || { color: '#334155', bg: '#f1f5f9' };
+              return `
+                <li class="rec-item flex gap-3">
+                  <span class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-900 text-xs font-bold text-white">${i + 1}</span>
+                  <div>
+                    <p class="font-semibold text-slate-900">${escapeHtml(item.title)}
+                      <span class="ml-1 inline-block rounded-full px-2 py-0.5 align-middle text-[11px] font-bold" style="color:${tag.color};background:${tag.bg}">${escapeHtml(item.tag)}</span>
+                    </p>
+                    <p class="mt-0.5 text-sm leading-relaxed text-slate-700">${escapeHtml(item.text)}</p>
+                  </div>
+                </li>`;
+            }).join('')}
+          </ol>
+        </article>`;
+    }).join('');
+  }
+
+  /** Linha do tempo do Roteiro Seguro de Migração. */
+  function renderRoadmap(d) {
+    const rm = d.roadmap;
+    $('#roadmapIntro').innerHTML =
+      `Roteiro ajustado ao risco <strong style="color:${d.risk.level.color}">${d.risk.level.label}</strong>, ao modelo <strong>${escapeHtml(d.cloud.model.name)}</strong> ` +
+      `e ao porte <strong>${escapeHtml(d.size.short)}</strong>. Duração estimada: <strong>${rm.totalWeeks} semanas (≈ ${rm.totalMonths} ${rm.totalMonths === 1 ? 'mês' : 'meses'})</strong>` +
+      `${rm.phases.some((p) => p.id === 'estabilizacao') ? ', incluindo uma fase prévia de <strong>Estabilização</strong> exigida pelo nível de risco' : ''}.`;
+
+    $('#roadmap').innerHTML = rm.phases.map((phase, i) => `
+      <li class="phase relative pl-14">
+        <span class="absolute left-0 top-0 grid h-11 w-11 place-items-center rounded-full border-4 border-slate-50 text-white shadow" style="background:${phase.id === 'estabilizacao' ? d.risk.level.color : '#0369a1'}">
+          <i data-lucide="${phase.icon}" class="h-5 w-5"></i>
+        </span>
+        <div class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-600">Fase ${i + 1}</p>
+              <h4 class="text-lg font-bold text-slate-900">${escapeHtml(phase.name)}</h4>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-900 ring-1 ring-sky-200">
+              <i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+              Semanas ${phase.startWeek}–${phase.endWeek} · ${phase.weeks} ${phase.weeks === 1 ? 'semana' : 'semanas'}${phase.continuous ? ' + contínuo' : ''}
+            </span>
+          </div>
+          <p class="mt-2 text-sm text-slate-700"><strong>Objetivo:</strong> ${escapeHtml(phase.objective)}</p>
+          <ul class="mt-3 space-y-1.5 text-sm text-slate-700">
+            ${phase.actions.map((a) => `<li class="flex gap-2"><i data-lucide="circle-check" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"></i><span>${escapeHtml(a)}</span></li>`).join('')}
+          </ul>
+          <p class="mt-3 rounded-lg bg-slate-50 p-2.5 text-sm text-slate-700"><strong>Entregável:</strong> ${escapeHtml(phase.deliverable)}</p>
+        </div>
+      </li>`).join('');
+  }
+
+  /** Tabela de metodologia, gerada a partir dos pesos configurados. */
+  function renderMethodology() {
+    const rows = PILLARS.map((p) => `
+      <tr class="border-t border-slate-100">
+        <td class="py-2 pr-3 font-medium text-slate-800">${escapeHtml(p.name)}</td>
+        <td class="py-2 pr-3 text-center">${Math.round(p.weight * 100)}%</td>
+        <td class="py-2 text-center">${Math.round(p.riskWeight * 100)}%</td>
+      </tr>`).join('');
+    $('#methodology').innerHTML = `
+      <div class="grid gap-6 md:grid-cols-2 print-cols-2">
+        <div>
+          <table class="w-full text-left text-sm">
+            <caption class="mb-2 text-left font-semibold text-slate-800">Pesos por pilar</caption>
+            <thead><tr class="text-xs uppercase tracking-wider text-slate-600"><th scope="col" class="pb-1">Pilar</th><th scope="col" class="pb-1 text-center">Score geral</th><th scope="col" class="pb-1 text-center">Risco</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <ul class="list-disc space-y-1.5 pl-5">
+          <li><strong>Nota do pilar</strong> = soma dos pontos das 2 perguntas ÷ 8 × 100.</li>
+          <li><strong>Score geral</strong> = média ponderada das notas dos pilares (pesos ao lado).</li>
+          <li><strong>Selos:</strong> Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100%.</li>
+          <li><strong>Índice de risco</strong> = 100 − média ponderada pelos pesos de risco (maior peso para Backup e Rede). Baixo ≤ 24 · Moderado 25–44 · Alto 45–64 · Crítico ≥ 65, com agravantes para ausência de backup, rede frágil e setor regulado sem maturidade LGPD.</li>
+          <li><strong>Modelo de nuvem:</strong> pontuação por regras de porte, setor, legados, hardware, rede, LGPD e maturidade.</li>
+        </ul>
+      </div>`;
+  }
+
+  /* =====================================================================
+   * 16. GRÁFICO RADAR (Chart.js)
+   *   Destrói a instância anterior antes de criar uma nova, evitando
+   *   sobreposição de gráficos entre diagnósticos.
+   * ===================================================================== */
+  function renderRadarChart(d) {
+    const canvas = $('#radarChart');
+    const labels = d.pillarScores.map((p) => p.short);
+    const values = d.pillarScores.map((p) => p.percent);
+    const ideal = d.pillarScores.map(() => APP_CONFIG.idealLevel);
+
+    // Texto alternativo para leitores de tela
+    const summary = d.pillarScores.map((p) => `${p.name}: ${p.percent}%`).join('; ');
+    canvas.setAttribute('aria-label', `Gráfico radar. ${summary}. Nível ideal de referência: ${APP_CONFIG.idealLevel}%.`);
+    $('#radarFallback').textContent = `Pontuação por pilar — ${summary}. Nível ideal: ${APP_CONFIG.idealLevel}%.`;
+
+    if (typeof window.Chart === 'undefined') {
+      $('#radarCanvasWrap').innerHTML = `<p class="grid h-full place-items-center rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-600">Não foi possível carregar o gráfico (Chart.js indisponível). ${escapeHtml(summary)}.</p>`;
+      return;
+    }
+
+    // Destrói qualquer gráfico existente neste canvas
+    if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
+    const existing = window.Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
+    radarChartInstance = new window.Chart(canvas.getContext('2d'), {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: d.profile.companyName,
+            data: values,
+            fill: true,
+            backgroundColor: 'rgba(2, 132, 199, 0.22)',
+            borderColor: '#0284c7',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#0284c7',
+            pointBorderColor: '#ffffff',
+            pointRadius: 5,
+            pointHoverRadius: 7
+          },
+          {
+            label: `Nível ideal (${APP_CONFIG.idealLevel}%)`,
+            data: ideal,
+            fill: false,
+            borderColor: '#059669',
+            borderDash: [6, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: prefersReducedMotion ? false : { duration: 700, onComplete: updateRadarPrintImage },
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { stepSize: 20, callback: (v) => `${v}%`, backdropColor: 'rgba(255,255,255,0.8)', color: '#475569', font: { size: 11 } },
+            grid: { color: '#e2e8f0' },
+            angleLines: { color: '#cbd5e1' },
+            pointLabels: { color: '#0f172a', font: { size: 13, weight: '700', family: 'Inter' } }
+          }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#334155', font: { size: 12, family: 'Inter' }, usePointStyle: true } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } }
+        }
+      }
+    });
+    if (prefersReducedMotion) updateRadarPrintImage();
+  }
+
+  /** Converte o gráfico em imagem estática para a impressão (evita distorções do canvas no PDF). */
+  function updateRadarPrintImage() {
+    if (!radarChartInstance) return;
+    try { $('#radarPrintImg').src = radarChartInstance.toBase64Image('image/png', 1); } catch (e) { /* ignora */ }
+  }
+
+  /* =====================================================================
+   * 17. FLUXO PRINCIPAL, DEMO, IMPRESSÃO E LIMPEZA
+   * ===================================================================== */
+
+  /** Valida, calcula e exibe o painel de resultados. */
+  function handleSubmit(event) {
+    if (event) event.preventDefault();
+    const profile = collectProfile();
+    const answers = collectAnswers();
+    if (!validateForm(profile, answers)) return;
+
+    lastDiagnosis = runDiagnosis(profile, answers);
+    const results = $('#resultsSection');
+    results.classList.remove('hidden');
+    renderDashboard(lastDiagnosis);
+
+    results.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    $('#resultsTitle').focus({ preventScroll: true });
+    showToast(`Laudo gerado: ${lastDiagnosis.classification.label} (${lastDiagnosis.overallScore}%) · Risco ${lastDiagnosis.risk.level.label}.`);
+  }
+
+  /** Preenche o formulário com o caso exemplo e executa o diagnóstico imediatamente. */
+  function loadDemoCase() {
+    $('#companyName').value = DEMO_CASE.companyName;
+    $('#sector').value = DEMO_CASE.sector;
+    $('#size').value = DEMO_CASE.size;
+    Object.entries(DEMO_CASE.answers).forEach(([qid, score]) => {
+      const input = document.querySelector(`input[name="${qid}"][value="${score}"]`);
+      if (input) input.checked = true;
+    });
+    updateProgress();
+    handleSubmit();
+  }
+
+  /** Limpa o formulário e oculta o painel. */
+  function resetAll() {
+    $('#diagnosticForm').reset();
+    ['companyName', 'sector', 'size'].forEach((id) => setFieldError(id, false));
+    document.querySelectorAll('.question-error').forEach((el) => el.classList.remove('question-error'));
+    $('#validationMessage').classList.add('hidden');
+    $('#resultsSection').classList.add('hidden');
+    if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
+    $('#radarPrintImg').removeAttribute('src');
+    lastDiagnosis = null;
+    updateProgress();
+    $('#formSection').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    $('#companyName').focus({ preventScroll: true });
+  }
+
+  /** Imprime / exporta o laudo em PDF (via diálogo de impressão do navegador). */
+  function handlePrint() {
+    updateRadarPrintImage();
+    const original = document.title;
+    if (lastDiagnosis) {
+      // Sugere um nome de arquivo amigável ao salvar como PDF
+      document.title = `Laudo Jumbitos - ${lastDiagnosis.profile.companyName} - ${lastDiagnosis.reportId}`;
+    }
+    window.print();
+    setTimeout(() => { document.title = original; }, 500);
+  }
+
+  /** Renderiza os créditos dos autores no rodapé e as assinaturas do laudo impresso. */
+  function renderAuthors() {
+    $('#authorsList').innerHTML = APP_CONFIG.authors.map((a) =>
+      `<li><strong class="text-slate-900">${escapeHtml(a.name)}</strong> — ${escapeHtml(a.role)}</li>`).join('');
+    $('#printSignatures').innerHTML = APP_CONFIG.authors.map((a) => `
+      <div style="text-align:center;font-size:10px;">
+        <div style="border-top:1px solid #334155;padding-top:4px;font-weight:700;">${escapeHtml(a.name)}</div>
+        <div style="color:#475569;">${escapeHtml(a.role)}</div>
+      </div>`).join('');
+    $('#footerYear').textContent = new Date().getFullYear();
+  }
+
+  /** Inicialização da aplicação. */
+  function init() {
+    renderProfileOptions();
+    renderQuestions();
+    renderAuthors();
+    refreshIcons();
+    updateProgress();
+
+    const form = $('#diagnosticForm');
+    form.addEventListener('submit', handleSubmit);
+    form.addEventListener('change', (e) => {
+      if (e.target.matches('input[type="radio"]')) updateProgress();
+      if (e.target.matches('#sector, #size') && e.target.value) setFieldError(e.target.id, false);
+    });
+    $('#companyName').addEventListener('input', (e) => { if (e.target.value.trim()) setFieldError('companyName', false); });
+    $('#validationMessage').addEventListener('click', handleValidationShortcut);
+    $('#btnDemo').addEventListener('click', loadDemoCase);
+    $('#btnReset').addEventListener('click', resetAll);
+    $('#btnNew').addEventListener('click', resetAll);
+    $('#btnPrint').addEventListener('click', handlePrint);
+    $('#btnEdit').addEventListener('click', () => {
+      $('#formSection').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+      $('#companyName').focus({ preventScroll: true });
+    });
+
+    // Atualiza a imagem do gráfico também quando o usuário usa Ctrl+P
+    window.addEventListener('beforeprint', updateRadarPrintImage);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
