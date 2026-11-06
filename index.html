@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jumbitos – Cloud &amp; Infra Readiness Advisor</title>
   <meta name="description" content="Simulador de Migração para a Nuvem: diagnóstico de infraestrutura, risco operacional, modelo de nuvem recomendado (SaaS, PaaS, IaaS ou Híbrida) e laudo técnico com roteiro seguro de migração. Processamento 100% local no navegador." />
-  <meta name="theme-color" content="#0b1220" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230284c7'/%3E%3Cpath d='M20 42h24a9 9 0 0 0 0-18 13 13 0 0 0-25 3 7.5 7.5 0 0 0 1 15z' fill='white'/%3E%3C/svg%3E" />
+  <meta name="theme-color" content="#070a12" />
+  <meta name="color-scheme" content="dark" />
+  <!-- Favicon: logo Jumbitos (nuvem + J) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1.5' y='1.5' width='45' height='45' rx='12.5' fill='%230d1424' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M14 31a6 6 0 0 1 1.4-11.85A9.2 9.2 0 0 1 32.8 17.3 6.6 6.6 0 0 1 34 31' fill='none' stroke='url(%23g)' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M27 22.5v7.5a4.5 4.5 0 0 1-9 0' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E" />
 
-  <!-- Fonte Inter (Google Fonts) -->
+  <!-- Fonte Inter (Google Fonts) — remova estas 3 linhas para não fazer nenhuma requisição ao Google -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -16,13 +18,22 @@
   <!-- TailwindCSS (Play CDN, versão fixada) -->
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <script>
+    /* Cores ligadas a variáveis CSS (tokens): o tema escuro vale na tela e o
+       tema claro é aplicado automaticamente na impressão / PDF. */
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'] },
           colors: {
-            brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c2a4a' },
-            ink: { 900: '#0b1220', 800: '#111a2e' }
+            bg: 'rgb(var(--bg) / <alpha-value>)',
+            surface: 'rgb(var(--surface) / <alpha-value>)',
+            'surface-2': 'rgb(var(--surface-2) / <alpha-value>)',
+            line: 'rgb(var(--line) / <alpha-value>)',
+            fg: 'rgb(var(--fg) / <alpha-value>)',
+            muted: 'rgb(var(--muted) / <alpha-value>)',
+            accent: 'rgb(var(--accent) / <alpha-value>)',
+            'accent-2': 'rgb(var(--accent-2) / <alpha-value>)',
+            'on-accent': 'rgb(var(--on-accent) / <alpha-value>)'
           }
         }
       }
@@ -34,218 +45,349 @@
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
-  <style>
-    html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
-    body { font-family: 'Inter', system-ui, sans-serif; }
+  <!-- Componentes reutilizáveis (processados pelo Tailwind) -->
+  <style type="text/tailwindcss">
+    @layer components {
+      .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50; }
+      .btn-primary { @apply bg-accent text-on-accent shadow-lg shadow-accent/10 hover:brightness-110 active:scale-[.98]; }
+      .btn-secondary { @apply border border-line bg-surface-2 text-fg hover:border-accent/50 active:scale-[.98]; }
+      .btn-ghost { @apply text-muted hover:bg-white/5 hover:text-fg; }
+      .card { @apply rounded-2xl border border-line bg-surface; }
+      .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted; }
+      .field { @apply w-full rounded-xl border border-line bg-surface-2 px-3.5 py-2.5 text-fg transition placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30; }
+      .label { @apply mb-1.5 block text-sm font-medium text-fg; }
+      .chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted; }
+    }
+  </style>
 
-    /* Link "pular para o conteúdo" (acessibilidade) */
+  <style>
+    /* ===================== TOKENS DE TEMA ===================== */
+    :root {
+      --bg: 7 10 18;          /* fundo da página   */
+      --surface: 13 18 30;    /* cards             */
+      --surface-2: 20 27 43;  /* campos e realces  */
+      --line: 36 46 66;       /* bordas            */
+      --fg: 226 232 240;      /* texto principal   */
+      --muted: 148 163 184;   /* texto secundário  */
+      --accent: 56 189 248;   /* cor de destaque   */
+      --accent-2: 129 140 248;
+      --on-accent: 4 16 29;   /* texto sobre o destaque */
+      color-scheme: dark;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; font-feature-settings: 'cv11', 'ss01'; }
+    .tabular { font-variant-numeric: tabular-nums; }
+    select.field option { background: rgb(var(--surface-2)); color: rgb(var(--fg)); }
+    ::selection { background: rgb(var(--accent) / .3); }
+
+    /* Brilho de fundo animado (sutil) */
+    .bg-glow { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+    .bg-glow::before, .bg-glow::after { content: ''; position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(90px); opacity: .16; }
+    .bg-glow::before { top: -30vmax; left: -10vmax; background: #0ea5e9; animation: drift 22s ease-in-out infinite alternate; }
+    .bg-glow::after { top: -25vmax; right: -20vmax; background: #6366f1; animation: drift 26s ease-in-out infinite alternate-reverse; }
+    .bg-grid { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image: linear-gradient(rgb(255 255 255 / .025) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / .025) 1px, transparent 1px);
+      background-size: 48px 48px; mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at top, black 20%, transparent 70%); }
+
+    /* Acessibilidade */
     .skip-link { position: absolute; left: -9999px; top: 0; }
     .skip-link:focus { left: 16px; top: 12px; z-index: 100; }
 
-    /* Estado de erro de pergunta não respondida */
-    .question-error { border-color: #dc2626 !important; background: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
+    /* ===================== TONS SEMÂNTICOS =====================
+       Cada elemento recebe --tone (tela escura) e --tone-print (impressão). */
+    .t-text { color: var(--tone); }
+    .t-fill { background-color: var(--tone); }
+    .t-soft { background-color: color-mix(in srgb, var(--tone) 14%, transparent); }
+    .t-border { border-color: color-mix(in srgb, var(--tone) 40%, transparent); }
+    .t-stroke { stroke: var(--tone); }
+    .t-chip { background-color: color-mix(in srgb, var(--tone) 16%, transparent); color: var(--tone); border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent); }
+
+    /* ===================== LOGO ANIMADO ===================== */
+    .logo-anim .logo-cloud { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.3s cubic-bezier(.6,.1,.2,1) .15s forwards; }
+    .logo-anim .logo-j { opacity: 0; transform: translateY(-6px); transform-origin: center; animation: dropIn .6s cubic-bezier(.3,1.4,.5,1) .95s forwards; }
+    .logo-spin { animation: spin 1.1s linear infinite; transform-origin: 50% 50%; }
+
+    /* ===================== ASSISTENTE (WIZARD) ===================== */
+    .step-btn { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .45rem .5rem; border-radius: .75rem; color: rgb(var(--muted)); text-align: left; font-size: .8125rem; font-weight: 600; transition: background .2s, color .2s; }
+    .step-btn:hover { background: rgb(255 255 255 / .03); color: rgb(var(--fg)); }
+    .step-btn:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+    .step-dot { position: relative; width: 30px; height: 30px; flex-shrink: 0; border-radius: 999px; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+      border: 1px solid rgb(var(--line)); background: rgb(var(--surface-2)); transition: all .25s; }
+    .step-dot .step-check { display: none; }
+    .step-btn.is-done .step-dot { background: rgb(52 211 153 / .12); color: #34d399; border-color: rgb(52 211 153 / .45); }
+    .step-btn.is-done .step-dot .step-num { display: none; }
+    .step-btn.is-done .step-dot .step-check { display: block; }
+    .step-btn.is-current { color: rgb(var(--fg)); }
+    .step-btn.is-current .step-dot { background: rgb(var(--accent)); color: rgb(var(--on-accent)); border-color: transparent; box-shadow: 0 0 0 4px rgb(var(--accent) / .18); }
+    .step-panel:not([hidden]) { animation: stepIn .38s cubic-bezier(.2,.8,.2,1); }
+
+    /* Alternativas de resposta */
+    .opt-box { transition: border-color .2s, background-color .2s, transform .15s; }
+    .opt:hover .opt-box { border-color: rgb(var(--accent) / .45); }
+    .opt:active .opt-box { transform: scale(.995); }
+    .opt input:checked + .opt-box { border-color: rgb(var(--accent)); background: rgb(var(--accent) / .08); }
+    .opt input:focus-visible + .opt-box { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+    .opt-check { opacity: 0; transform: scale(.4); transition: opacity .2s, transform .25s cubic-bezier(.3,1.5,.5,1); }
+    .opt input:checked + .opt-box .opt-check { opacity: 1; transform: scale(1); }
+
+    .question-error { border-color: #f87171 !important; background: rgb(248 113 113 / .06) !important; }
     .question-error .question-error-msg { display: flex !important; }
+    .is-ready { animation: pulseRing 1.5s ease-out 2; }
 
-    /* Anel do Score Geral (preenchido via conic-gradient) */
-    .score-ring { width: 168px; height: 168px; border-radius: 9999px; display: grid; place-items: center; }
-    .score-ring-inner { width: 128px; height: 128px; border-radius: 9999px; background: #fff; display: grid; place-items: center; }
+    /* ===================== ANIMAÇÕES DE ENTRADA ===================== */
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+    .reveal.is-visible { opacity: 1; transform: none; }
+    .bar-fill { width: 0; transition: width 1.1s cubic-bezier(.2,.8,.2,1) .15s; }
+    .reveal.is-visible .bar-fill, .bar-fill.is-visible { width: var(--w); }
+    .ring-progress { transition: stroke-dashoffset 1.4s cubic-bezier(.2,.8,.2,1) .2s; }
+    .teaser-bar { animation: breathe 4.5s ease-in-out infinite; }
 
-    /* Linha do tempo do roteiro */
+    /* Linha do tempo */
     .timeline { position: relative; }
-    .timeline::before { content: ''; position: absolute; left: 21px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(#0284c7, #10b981); }
+    .timeline::before { content: ''; position: absolute; left: 19px; top: 10px; bottom: 10px; width: 2px; background: linear-gradient(rgb(var(--accent)), #34d399); opacity: .5; }
 
-    /* Elementos exclusivos da impressão */
+    /* Itens do painel de análise */
+    .an-item .an-wait, .an-item .an-spin, .an-item .an-done { display: none; }
+    .an-item[data-state="wait"] .an-wait { display: block; }
+    .an-item[data-state="run"] .an-spin { display: block; }
+    .an-item[data-state="done"] .an-done { display: block; }
+    .an-item[data-state="done"] { color: rgb(var(--fg)); }
+
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes dropIn { to { opacity: 1; transform: none; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes stepIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgb(var(--accent) / .55); } 100% { box-shadow: 0 0 0 14px rgb(var(--accent) / 0); } }
+    @keyframes drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(8vmax, 4vmax) scale(1.15); } }
+    @keyframes breathe { 0%, 100% { width: var(--w0); } 50% { width: var(--w); } }
+    .animate-fade-up { animation: fadeUp .6s cubic-bezier(.2,.8,.2,1) both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
+      .reveal { opacity: 1; transform: none; }
+      .bar-fill { width: var(--w); }
+      .logo-anim .logo-cloud, .logo-anim .logo-j { animation: none !important; opacity: 1; transform: none; stroke-dashoffset: 0; }
+    }
+
     .print-only { display: none; }
-
-    /* Garante que as cores impressas sejam preservadas */
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-    /* ===================== CSS DE IMPRESSÃO / PDF ===================== */
+    /* ===================== IMPRESSÃO / PDF (tema claro) ===================== */
     @media print {
+      :root { --bg: 255 255 255; --surface: 255 255 255; --surface-2: 248 250 252; --line: 203 213 225; --fg: 15 23 42; --muted: 71 85 105; --accent: 3 105 161; --accent-2: 67 56 202; --on-accent: 255 255 255; color-scheme: light; }
       @page { size: A4; margin: 12mm 11mm; }
-      html, body { background: #ffffff !important; font-size: 11px; }
-      .no-print, .app-header, #formSection, #toast, .skip-link { display: none !important; }
+      html, body { background: #fff !important; font-size: 11px; }
+      .no-print, .app-nav, #heroSection, #formSection, #analysisOverlay, #toast, .skip-link, .bg-glow, .bg-grid, #resultsNav, #demoBanner .no-print { display: none !important; }
       .print-only { display: block !important; }
       main { padding: 0 !important; max-width: none !important; }
-      #resultsSection { margin-top: 0 !important; padding-top: 0 !important; }
-      .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+      #resultsSection { padding-top: 0 !important; margin-top: 0 !important; }
+      .shadow, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .bar-fill { width: var(--w) !important; transition: none !important; }
+      .ring-progress { transition: none !important; }
       .card, .avoid-break, li.phase, .rec-item, .pillar-card { break-inside: avoid; page-break-inside: avoid; }
       .print-break-before { break-before: page; page-break-before: always; }
       h2, h3 { break-after: avoid; page-break-after: avoid; }
       .print-cols-2 { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
       .print-cols-3 { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
       .print-cols-4 { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-      .print-span-full { grid-column: 1 / -1 !important; }
-      /* O canvas é substituído por uma imagem estática para não deformar na impressão */
+      .t-text { color: var(--tone-print); }
+      .t-fill { background-color: var(--tone-print); }
+      .t-soft { background-color: color-mix(in srgb, var(--tone-print) 10%, white); }
+      .t-border { border-color: color-mix(in srgb, var(--tone-print) 45%, white); }
+      .t-stroke { stroke: var(--tone-print); }
+      .t-chip { background-color: color-mix(in srgb, var(--tone-print) 10%, white); color: var(--tone-print); border-color: color-mix(in srgb, var(--tone-print) 45%, white); }
       #radarCanvasWrap { display: none !important; }
       #radarPrintImg { display: block !important; width: 100%; max-width: 420px; margin: 0 auto; height: auto; }
-      .score-ring { width: 130px; height: 130px; }
-      .score-ring-inner { width: 100px; height: 100px; }
+      .timeline::before { opacity: 1; }
       a { color: inherit; text-decoration: none; }
-      footer { border-top: 1px solid #cbd5e1; margin-top: 12px; }
     }
   </style>
 </head>
 
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
-  <a href="#main" class="skip-link rounded-lg bg-white px-4 py-2 font-semibold text-brand-700 shadow ring-2 ring-brand-600">Pular para o conteúdo</a>
+<body class="min-h-screen bg-bg text-fg antialiased">
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <a href="#main" class="skip-link btn btn-primary">Pular para o conteúdo</a>
+  <noscript><div class="bg-red-700 p-4 text-center font-semibold text-white">Este simulador precisa de JavaScript habilitado para funcionar.</div></noscript>
 
-  <noscript>
-    <div class="bg-red-700 p-4 text-center font-semibold text-white">Este simulador precisa de JavaScript habilitado para funcionar.</div>
-  </noscript>
-
-  <!-- ===================== CABEÇALHO EXECUTIVO ===================== -->
-  <header class="app-header relative overflow-hidden bg-gradient-to-br from-[#0b1220] via-[#10204a] to-[#0c4a6e] text-white">
-    <div aria-hidden="true" class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-3xl"></div>
-    <div aria-hidden="true" class="pointer-events-none absolute -bottom-32 left-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl"></div>
-
-    <div class="relative mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-500 shadow-lg shadow-sky-900/40">
-            <i data-lucide="cloud-cog" class="h-7 w-7 text-white"></i>
-          </div>
-          <div>
-            <p class="text-2xl font-extrabold tracking-tight">Jumbitos</p>
-            <p class="text-xs font-medium uppercase tracking-[0.18em] text-sky-200">Cloud &amp; Infra Readiness Advisor</p>
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
-          <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-emerald-200">
-            <i data-lucide="shield-check" class="h-4 w-4"></i> Privacy by Design · LGPD
-          </span>
-          <span class="inline-flex items-center gap-1.5 rounded-full border border-sky-300/40 bg-sky-400/10 px-3 py-1.5 text-sky-100">
-            <i data-lucide="cpu" class="h-4 w-4"></i> Processamento 100% local
-          </span>
-        </div>
-      </div>
-
-      <div class="mt-8 grid items-end gap-8 lg:grid-cols-5">
-        <div class="lg:col-span-3">
-          <h1 class="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-            Simulador de Migração para a Nuvem
-          </h1>
-          <p class="mt-3 max-w-2xl text-base leading-relaxed text-slate-200">
-            Diagnostique servidores, rede, dados e backup da sua empresa, descubra o modelo de nuvem mais adequado
-            (SaaS, PaaS, IaaS ou Híbrido), meça o risco operacional da migração e gere um <strong class="text-white">Laudo Técnico</strong>
-            com roteiro seguro de migração.
-          </p>
-        </div>
-        <ol class="grid grid-cols-3 gap-3 text-center text-xs sm:text-sm lg:col-span-2" aria-label="Etapas do diagnóstico">
-          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-            <i data-lucide="building-2" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
-            <span class="font-semibold">1. Perfil</span>
-          </li>
-          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-            <i data-lucide="list-checks" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
-            <span class="font-semibold">2. 8 perguntas</span>
-          </li>
-          <li class="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-            <i data-lucide="file-text" class="mx-auto mb-1 h-5 w-5 text-sky-300"></i>
-            <span class="font-semibold">3. Laudo</span>
-          </li>
-        </ol>
+  <!-- ===================== NAVEGAÇÃO / MARCA ===================== -->
+  <header class="app-nav sticky top-0 z-40 border-b border-line/70 bg-bg/75 backdrop-blur-xl">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <a href="#main" class="flex items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Jumbitos — início" id="brandLink">
+        <!-- Logo Jumbitos: nuvem + J (animado ao carregar) -->
+        <svg class="logo-anim h-9 w-9" viewBox="0 0 48 48" aria-hidden="true">
+          <defs>
+            <linearGradient id="logoGradNav" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee" /><stop offset="1" stop-color="#6366f1" /></linearGradient>
+          </defs>
+          <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="#0d1424" stroke="url(#logoGradNav)" stroke-width="1.6" />
+          <path class="logo-cloud" pathLength="100" d="M14 31a6 6 0 0 1 1.4-11.85A9.2 9.2 0 0 1 32.8 17.3 6.6 6.6 0 0 1 34 31" fill="none" stroke="url(#logoGradNav)" stroke-width="3.2" stroke-linecap="round" />
+          <path class="logo-j" d="M27 22.5v7.5a4.5 4.5 0 0 1-9 0" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" />
+        </svg>
+        <span class="leading-tight">
+          <span class="block text-[17px] font-bold tracking-tight">Jumbitos</span>
+          <span class="hidden text-[11px] font-medium text-muted sm:block">Cloud &amp; Infra Readiness Advisor</span>
+        </span>
+      </a>
+      <div class="flex items-center gap-2">
+        <span class="chip hidden md:inline-flex"><i data-lucide="shield-check" class="h-3.5 w-3.5 text-emerald-400"></i> 100% local · LGPD</span>
+        <button type="button" class="btn btn-secondary js-demo" aria-label="Carregar caso exemplo aleatório (demo)">
+          <i data-lucide="shuffle" class="h-4 w-4 text-accent"></i><span class="hidden sm:inline">Demo aleatória</span>
+        </button>
       </div>
     </div>
   </header>
 
-  <main id="main" class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  <main id="main" class="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
 
-    <!-- ===================== FORMULÁRIO DE DIAGNÓSTICO ===================== -->
-    <section id="formSection" aria-labelledby="formTitle">
-      <form id="diagnosticForm" novalidate>
-        <!-- Perfil da empresa -->
-        <div class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 id="formTitle" class="flex items-center gap-2 text-xl font-bold text-slate-900">
-                <i data-lucide="building-2" class="h-5 w-5 text-brand-600"></i> Perfil da Empresa
-              </h2>
-              <p class="mt-1 text-sm text-slate-600">Esses dados personalizam o laudo e influenciam a recomendação do modelo de nuvem.</p>
-            </div>
-            <button type="button" id="btnDemo"
-              class="inline-flex items-center gap-2 rounded-xl border-2 border-indigo-600 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300">
-              <i data-lucide="circle-play" class="h-5 w-5"></i> Carregar Caso Exemplo (Demo)
-            </button>
+    <!-- ===================== HERO ===================== -->
+    <section id="heroSection" class="grid items-center gap-10 pb-10 pt-12 sm:pt-16 lg:grid-cols-[1.15fr_.85fr]" aria-labelledby="heroTitle">
+      <div class="animate-fade-up">
+        <span class="chip"><span class="h-1.5 w-1.5 rounded-full bg-accent"></span> Simulador de Migração para a Nuvem</span>
+        <h1 id="heroTitle" class="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
+          Sua infraestrutura está pronta para a
+          <span class="bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-400 bg-clip-text text-transparent">nuvem</span>?
+        </h1>
+        <p class="mt-5 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
+          Responda 8 perguntas sobre servidores, rede, dados e backup e receba um <span class="text-fg">laudo técnico</span> com score de prontidão,
+          risco operacional, modelo de nuvem ideal (SaaS, PaaS, IaaS ou Híbrido) e um roteiro seguro de migração.
+        </p>
+        <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+          <button type="button" id="btnStart" class="btn btn-primary px-5 py-3 text-[15px]">
+            Iniciar diagnóstico <i data-lucide="arrow-right" class="h-4 w-4"></i>
+          </button>
+          <button type="button" id="btnDemo" class="btn btn-secondary js-demo px-5 py-3 text-[15px]">
+            <i data-lucide="shuffle" class="h-4 w-4 text-accent"></i> Carregar Caso Exemplo (Demo)
+          </button>
+        </div>
+        <p class="mt-3 text-xs text-muted">A demo cria uma empresa fictícia diferente a cada clique.</p>
+        <dl class="mt-9 grid max-w-lg grid-cols-4 gap-4 border-t border-line/70 pt-6">
+          <div><dt class="text-xs text-muted">Pilares</dt><dd class="tabular mt-1 text-xl font-bold">4</dd></div>
+          <div><dt class="text-xs text-muted">Perguntas</dt><dd class="tabular mt-1 text-xl font-bold">8</dd></div>
+          <div><dt class="text-xs text-muted">Duração</dt><dd class="tabular mt-1 text-xl font-bold">≈3 min</dd></div>
+          <div><dt class="text-xs text-muted">Dados enviados</dt><dd class="tabular mt-1 text-xl font-bold">0</dd></div>
+        </dl>
+      </div>
+
+      <!-- Prévia ilustrativa do laudo (decorativa) -->
+      <div class="relative hidden lg:block" aria-hidden="true">
+        <div class="absolute -inset-6 rounded-[2rem] bg-gradient-to-br from-sky-500/10 to-indigo-500/10 blur-2xl"></div>
+        <div class="card relative p-6 shadow-2xl shadow-black/40 animate-fade-up" style="animation-delay:.15s">
+          <div class="flex items-center justify-between">
+            <span class="eyebrow">Prévia do laudo</span>
+            <span class="chip" style="--tone:#38bdf8;--tone-print:#0369a1"><span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span> Estruturado</span>
           </div>
+          <div class="mt-5 flex items-center gap-6">
+            <svg viewBox="0 0 120 120" class="h-28 w-28 -rotate-90">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="rgb(var(--line))" stroke-width="9" />
+              <circle cx="60" cy="60" r="50" fill="none" stroke="url(#teaserGrad)" stroke-width="9" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16">
+                <animate attributeName="stroke-dashoffset" from="314.16" to="72" dur="1.6s" begin="0.3s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1" />
+              </circle>
+              <defs><linearGradient id="teaserGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee" /><stop offset="1" stop-color="#818cf8" /></linearGradient></defs>
+            </svg>
+            <div>
+              <p class="text-xs text-muted">Score de prontidão</p>
+              <p class="tabular text-4xl font-extrabold">77<span class="text-xl text-muted">%</span></p>
+              <p class="mt-1 text-xs text-muted">Modelo: <span class="font-semibold text-fg">IaaS</span> · Risco <span class="font-semibold text-sky-300">Moderado</span></p>
+            </div>
+          </div>
+          <div class="mt-6 space-y-3 text-xs">
+            <div><div class="mb-1 flex justify-between text-muted"><span>Servidores</span><span>75%</span></div><div class="h-1.5 rounded-full bg-surface-2"><div class="teaser-bar h-1.5 rounded-full bg-sky-400" style="--w0:55%;--w:75%"></div></div></div>
+            <div><div class="mb-1 flex justify-between text-muted"><span>Rede</span><span>88%</span></div><div class="h-1.5 rounded-full bg-surface-2"><div class="teaser-bar h-1.5 rounded-full bg-violet-400" style="--w0:70%;--w:88%;animation-delay:.4s"></div></div></div>
+            <div><div class="mb-1 flex justify-between text-muted"><span>Dados</span><span>63%</span></div><div class="h-1.5 rounded-full bg-surface-2"><div class="teaser-bar h-1.5 rounded-full bg-teal-400" style="--w0:40%;--w:63%;animation-delay:.8s"></div></div></div>
+            <div><div class="mb-1 flex justify-between text-muted"><span>Backup</span><span>81%</span></div><div class="h-1.5 rounded-full bg-surface-2"><div class="teaser-bar h-1.5 rounded-full bg-orange-400" style="--w0:60%;--w:81%;animation-delay:1.2s"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-          <div class="mt-5 grid gap-4 md:grid-cols-3">
-            <div>
-              <label for="companyName" class="mb-1 block text-sm font-semibold text-slate-800">Nome da Empresa <span class="text-red-700" aria-hidden="true">*</span></label>
-              <input id="companyName" name="companyName" type="text" maxlength="90" autocomplete="organization" placeholder="Ex.: Comercial Aurora Ltda."
-                aria-describedby="companyNameError" aria-required="true"
-                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 placeholder:text-slate-500 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100" />
-              <p id="companyNameError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Informe o nome da empresa.</p>
-            </div>
-            <div>
-              <label for="sector" class="mb-1 block text-sm font-semibold text-slate-800">Setor <span class="text-red-700" aria-hidden="true">*</span></label>
-              <select id="sector" name="sector" aria-describedby="sectorError" aria-required="true"
-                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100">
-                <option value="">Selecione o setor…</option>
-              </select>
-              <p id="sectorError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Selecione o setor de atuação.</p>
-            </div>
-            <div>
-              <label for="size" class="mb-1 block text-sm font-semibold text-slate-800">Porte <span class="text-red-700" aria-hidden="true">*</span></label>
-              <select id="size" name="size" aria-describedby="sizeError" aria-required="true"
-                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-slate-900 focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-100">
-                <option value="">Selecione o porte…</option>
-              </select>
-              <p id="sizeError" class="field-error mt-1 hidden text-sm font-medium text-red-700">Selecione o porte da empresa.</p>
-            </div>
+    <!-- ===================== ASSISTENTE DE DIAGNÓSTICO ===================== -->
+    <section id="formSection" class="scroll-mt-20" aria-labelledby="formTitle">
+      <form id="diagnosticForm" class="card overflow-hidden shadow-2xl shadow-black/30" novalidate>
+        <!-- Cabeçalho do assistente: etapas + progresso -->
+        <div class="border-b border-line bg-surface-2/40 px-4 pb-4 pt-5 sm:px-6">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="formTitle" class="text-base font-semibold">Diagnóstico de prontidão</h2>
+            <p id="progressText" class="tabular text-xs font-medium text-muted" aria-live="polite">0 de 8 respostas</p>
+          </div>
+          <ol id="stepper" class="mt-4 grid grid-cols-5 gap-1 sm:gap-2" aria-label="Etapas do diagnóstico"></ol>
+          <div class="mt-3 h-1 w-full overflow-hidden rounded-full bg-line/60" role="progressbar" id="progressBar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" aria-label="Perguntas respondidas">
+            <div id="progressFill" class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-indigo-400 transition-all duration-500" style="width:0%"></div>
           </div>
         </div>
 
-        <!-- Barra de progresso (fixa ao rolar) -->
-        <div class="sticky top-0 z-20 -mx-4 mt-6 border-b border-slate-200 bg-slate-50/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border">
-          <div class="flex items-center justify-between gap-3 text-sm">
-            <span class="font-semibold text-slate-800">Progresso do diagnóstico</span>
-            <span id="progressText" class="font-semibold text-brand-700" aria-live="polite">0 de 8 perguntas respondidas</span>
+        <div class="px-4 py-6 sm:px-6 sm:py-8">
+          <!-- Etapa 0: Perfil da empresa -->
+          <div class="step-panel" data-step-panel="0">
+            <p class="eyebrow">Etapa 1 de 5</p>
+            <h3 class="mt-1 text-xl font-bold tracking-tight focus:outline-none" tabindex="-1" data-step-heading>Perfil da empresa</h3>
+            <p class="mt-1 text-sm text-muted">Esses dados personalizam o laudo e influenciam a recomendação do modelo de nuvem.</p>
+            <div class="mt-6 grid gap-5 md:grid-cols-3">
+              <div>
+                <label for="companyName" class="label">Nome da empresa <span class="text-red-400" aria-hidden="true">*</span></label>
+                <input id="companyName" name="companyName" type="text" maxlength="90" autocomplete="organization" placeholder="Ex.: Comercial Aurora Ltda."
+                  aria-describedby="companyNameError" aria-required="true" class="field" />
+                <p id="companyNameError" class="mt-1.5 hidden text-sm text-red-400">Informe o nome da empresa.</p>
+              </div>
+              <div>
+                <label for="sector" class="label">Setor <span class="text-red-400" aria-hidden="true">*</span></label>
+                <select id="sector" name="sector" aria-describedby="sectorError" aria-required="true" class="field">
+                  <option value="">Selecione o setor…</option>
+                </select>
+                <p id="sectorError" class="mt-1.5 hidden text-sm text-red-400">Selecione o setor de atuação.</p>
+              </div>
+              <div>
+                <label for="size" class="label">Porte <span class="text-red-400" aria-hidden="true">*</span></label>
+                <select id="size" name="size" aria-describedby="sizeError" aria-required="true" class="field">
+                  <option value="">Selecione o porte…</option>
+                </select>
+                <p id="sizeError" class="mt-1.5 hidden text-sm text-red-400">Selecione o porte da empresa.</p>
+              </div>
+            </div>
+            <div class="mt-6 flex items-start gap-3 rounded-xl border border-line bg-surface-2/50 p-4 text-sm text-muted">
+              <i data-lucide="info" class="mt-0.5 h-4 w-4 shrink-0 text-accent"></i>
+              <p>Nas próximas 4 etapas você responde 2 perguntas por pilar. Cada alternativa vale de <span class="text-fg">0</span> (pior cenário) a <span class="text-fg">4</span> pontos (melhor prática).</p>
+            </div>
           </div>
-          <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" id="progressBar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" aria-label="Perguntas respondidas">
-            <div id="progressFill" class="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-300" style="width:0%"></div>
-          </div>
+
+          <!-- Etapas 1–4: pilares (renderizados a partir de QUESTIONS) -->
+          <div id="questionsContainer"></div>
+
+          <!-- Mensagem de validação -->
+          <div id="validationMessage" role="alert" aria-live="assertive" tabindex="-1"
+            class="mt-6 hidden rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"></div>
         </div>
 
-        <!-- Pilares e perguntas (renderizados dinamicamente a partir de QUESTIONS) -->
-        <div id="questionsContainer" class="mt-6 space-y-6"></div>
-
-        <!-- Mensagem de validação -->
-        <div id="validationMessage" role="alert" aria-live="assertive" tabindex="-1"
-          class="mt-6 hidden rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-900 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300"></div>
-
-        <!-- Ações do formulário -->
-        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="flex items-center gap-2 text-sm text-slate-600">
-            <i data-lucide="lock" class="h-4 w-4 text-emerald-700"></i>
-            Nenhum dado sai do seu navegador.
-          </p>
-          <div class="flex flex-col gap-3 sm:flex-row">
-            <button type="button" id="btnReset"
-              class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
-              <i data-lucide="rotate-ccw" class="h-4 w-4"></i> Limpar formulário
-            </button>
-            <button type="submit" id="btnSubmit"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-900/20 transition hover:bg-brand-900 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300">
-              <i data-lucide="gauge" class="h-5 w-5"></i> Gerar Diagnóstico e Laudo
-            </button>
+        <!-- Navegação do assistente -->
+        <div class="flex items-center justify-between gap-3 border-t border-line bg-surface-2/40 px-4 py-4 sm:px-6">
+          <div class="flex items-center gap-1">
+            <button type="button" id="btnPrev" class="btn btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4"></i> Voltar</button>
+            <button type="button" id="btnReset" class="btn btn-ghost hidden sm:inline-flex"><i data-lucide="rotate-ccw" class="h-4 w-4"></i> Limpar</button>
           </div>
+          <p class="hidden items-center gap-1.5 text-xs text-muted md:flex"><i data-lucide="lock" class="h-3.5 w-3.5 text-emerald-400"></i> Nenhum dado sai do seu navegador</p>
+          <button type="submit" id="btnNext" class="btn btn-primary min-w-[9.5rem]">
+            <span id="btnNextLabel">Próximo</span> <i data-lucide="arrow-right" class="h-4 w-4" id="btnNextIcon"></i>
+          </button>
         </div>
       </form>
     </section>
 
     <!-- ===================== PAINEL DE RESULTADOS / LAUDO ===================== -->
-    <section id="resultsSection" class="mt-12 hidden" aria-labelledby="resultsTitle">
+    <section id="resultsSection" class="hidden pt-8" aria-labelledby="resultsTitle">
 
       <!-- Cabeçalho do laudo exclusivo da impressão -->
-      <div class="print-only mb-4 border-b-2 border-slate-800 pb-3">
+      <div class="print-only mb-4 border-b-2 pb-3" style="border-color:#0f172a">
         <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;">
-          <div>
-            <p style="font-size:20px;font-weight:800;color:#0b1220;">Jumbitos <span style="font-weight:600;color:#0369a1;">· Cloud &amp; Infra Readiness Advisor</span></p>
-            <p style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#334155;">Laudo Técnico de Prontidão para Nuvem</p>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span data-logo style="display:inline-block;width:38px;height:38px;"></span>
+            <div>
+              <p style="font-size:18px;font-weight:800;color:#0f172a;">Jumbitos <span style="font-weight:500;color:#0369a1;">· Cloud &amp; Infra Readiness Advisor</span></p>
+              <p style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#334155;">Laudo Técnico de Prontidão para Nuvem</p>
+            </div>
           </div>
-          <div style="text-align:right;font-size:11px;color:#334155;">
+          <div style="text-align:right;font-size:10.5px;color:#334155;">
             <p><strong>Empresa:</strong> <span id="printCompany">—</span></p>
             <p><strong>Data de emissão:</strong> <span id="printDate">—</span></p>
             <p><strong>Laudo nº:</strong> <span id="printReportId">—</span></p>
@@ -254,81 +396,91 @@
       </div>
 
       <!-- Cabeçalho do laudo em tela -->
-      <div class="card flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div>
-          <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-700">Laudo Técnico · Resultado do Diagnóstico</p>
-          <h2 id="resultsTitle" tabindex="-1" class="mt-1 text-2xl font-extrabold text-slate-900 focus:outline-none"></h2>
-          <p id="resultsMeta" class="mt-1 text-sm text-slate-600"></p>
+      <div class="flex flex-col gap-5">
+        <div class="animate-fade-up">
+          <p class="eyebrow flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Laudo técnico gerado</p>
+          <h2 id="resultsTitle" tabindex="-1" class="mt-2 text-3xl font-extrabold tracking-tight focus:outline-none sm:text-4xl"></h2>
+          <p id="resultsMeta" class="mt-2 text-sm text-muted"></p>
         </div>
-        <div class="no-print flex flex-col gap-2 sm:flex-row">
-          <button type="button" id="btnEdit"
-            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
-            <i data-lucide="pencil-line" class="h-4 w-4"></i> Editar respostas
-          </button>
-          <button type="button" id="btnNew"
-            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-300">
-            <i data-lucide="rotate-ccw" class="h-4 w-4"></i> Novo diagnóstico
-          </button>
-          <button type="button" id="btnPrint"
-            class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300">
-            <i data-lucide="printer" class="h-4 w-4"></i> Imprimir / Exportar Laudo em PDF
-          </button>
+        <div class="no-print flex flex-wrap gap-2">
+          <button type="button" id="btnEdit" class="btn btn-secondary"><i data-lucide="pencil-line" class="h-4 w-4"></i> Editar respostas</button>
+          <button type="button" class="btn btn-secondary js-demo"><i data-lucide="shuffle" class="h-4 w-4 text-accent"></i> Nova demo</button>
+          <button type="button" id="btnNew" class="btn btn-secondary"><i data-lucide="rotate-ccw" class="h-4 w-4"></i> Novo diagnóstico</button>
+          <button type="button" id="btnPrint" class="btn btn-primary"><i data-lucide="printer" class="h-4 w-4"></i> Imprimir / Exportar Laudo em PDF</button>
         </div>
       </div>
 
-      <!-- Sumário executivo -->
-      <div class="card mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 sm:p-6">
-        <h3 class="flex items-center gap-2 text-base font-bold text-sky-900"><i data-lucide="file-text" class="h-5 w-5"></i> Sumário Executivo</h3>
-        <p id="executiveSummary" class="mt-2 leading-relaxed text-slate-800"></p>
+      <!-- Cenário da demo -->
+      <div id="demoBanner" class="mt-6 hidden"></div>
+
+      <!-- Navegação interna do laudo -->
+      <nav id="resultsNav" class="no-print sticky top-16 z-30 -mx-4 mt-6 border-y border-line/70 bg-bg/80 px-4 backdrop-blur-xl sm:mx-0 sm:rounded-xl sm:border" aria-label="Seções do laudo">
+        <ul class="flex gap-1 overflow-x-auto py-2 text-sm">
+          <li><a href="#r-resumo" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Resumo</a></li>
+          <li><a href="#r-pilares" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Pilares</a></li>
+          <li><a href="#r-radar" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Radar e alertas</a></li>
+          <li><a href="#r-plano" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Boas práticas</a></li>
+          <li><a href="#r-roteiro" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Roteiro</a></li>
+          <li><a href="#r-metodologia" class="block whitespace-nowrap rounded-lg px-3 py-1.5 text-muted hover:bg-white/5 hover:text-fg">Metodologia</a></li>
+        </ul>
+      </nav>
+
+      <!-- Resumo -->
+      <div id="r-resumo" class="scroll-mt-32">
+        <div class="card reveal mt-6 p-5 sm:p-6">
+          <h3 class="eyebrow flex items-center gap-2"><i data-lucide="file-text" class="h-4 w-4 text-accent"></i> Sumário executivo</h3>
+          <p id="executiveSummary" class="mt-3 leading-relaxed text-fg/90"></p>
+        </div>
+        <div class="mt-6 grid gap-6 lg:grid-cols-3 print-cols-3">
+          <article id="scoreCard" class="card reveal p-6" aria-labelledby="scoreCardTitle"></article>
+          <article id="riskCard" class="card reveal p-6" aria-labelledby="riskCardTitle" style="transition-delay:.08s"></article>
+          <article id="modelCard" class="card reveal p-6" aria-labelledby="modelCardTitle" style="transition-delay:.16s"></article>
+        </div>
       </div>
 
-      <!-- Score, Risco e Modelo -->
-      <div class="mt-6 grid gap-6 lg:grid-cols-3 print-cols-3">
-        <article id="scoreCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="scoreCardTitle"></article>
-        <article id="riskCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="riskCardTitle"></article>
-        <article id="modelCard" class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="modelCardTitle"></article>
+      <!-- Pilares -->
+      <div id="r-pilares" class="scroll-mt-32">
+        <h3 class="mt-12 text-lg font-bold tracking-tight">Nota por pilar</h3>
+        <div id="pillarCards" class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print-cols-4"></div>
       </div>
-
-      <!-- Cards por pilar -->
-      <h3 class="mt-10 flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="layers" class="h-5 w-5 text-brand-600"></i> Nota por Pilar</h3>
-      <div id="pillarCards" class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 print-cols-4"></div>
 
       <!-- Radar + alertas -->
-      <div class="mt-8 grid gap-6 lg:grid-cols-5 print-cols-2">
-        <article class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-3" aria-labelledby="radarTitle">
-          <h3 id="radarTitle" class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="radar" class="h-5 w-5 text-brand-600"></i> Radar de Prontidão vs. Nível Ideal</h3>
-          <p class="mt-1 text-sm text-slate-600">Comparação da pontuação da empresa em cada pilar com a referência de nível ideal para migração.</p>
+      <div id="r-radar" class="mt-8 grid scroll-mt-32 gap-6 lg:grid-cols-5 print-cols-2">
+        <article class="card reveal p-6 lg:col-span-3" aria-labelledby="radarTitle">
+          <h3 id="radarTitle" class="text-lg font-bold tracking-tight">Radar de prontidão</h3>
+          <p class="mt-1 text-sm text-muted">Pontuação da empresa em cada pilar comparada ao nível ideal para migração.</p>
           <div id="radarCanvasWrap" class="relative mt-4 h-80 sm:h-96">
             <canvas id="radarChart" role="img" aria-label="Gráfico radar com a pontuação de cada pilar"></canvas>
           </div>
           <img id="radarPrintImg" class="print-only" alt="Gráfico radar de prontidão por pilar" />
           <p id="radarFallback" class="sr-only"></p>
         </article>
-        <article class="card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2" aria-labelledby="alertsTitle">
-          <h3 id="alertsTitle" class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="triangle-alert" class="h-5 w-5 text-amber-600"></i> Vulnerabilidades Prioritárias</h3>
-          <p class="mt-1 text-sm text-slate-600">Respostas com pontuação 0 ou 1, que exigem tratamento antes ou durante a migração.</p>
+        <article class="card reveal p-6 lg:col-span-2" aria-labelledby="alertsTitle" style="transition-delay:.08s">
+          <h3 id="alertsTitle" class="flex items-center gap-2 text-lg font-bold tracking-tight"><i data-lucide="triangle-alert" class="h-5 w-5 text-amber-400"></i> Vulnerabilidades prioritárias</h3>
+          <p class="mt-1 text-sm text-muted">Respostas com pontuação 0 ou 1, que exigem tratamento antes ou durante a migração.</p>
           <ul id="alertsList" class="mt-4 space-y-3"></ul>
         </article>
       </div>
 
       <!-- Plano de Boas Práticas -->
-      <div class="print-break-before mt-10">
-        <h3 class="flex items-center gap-2 text-xl font-bold text-slate-900"><i data-lucide="lightbulb" class="h-6 w-6 text-amber-500"></i> Plano de Boas Práticas do Especialista</h3>
-        <p class="mt-1 text-sm text-slate-600">Recomendações técnicas personalizadas conforme a faixa de nota de cada pilar: <strong>baixa</strong> (0–39%), <strong>média</strong> (40–69%) ou <strong>alta</strong> (70–100%).</p>
-        <div id="recommendations" class="mt-4 grid gap-5 lg:grid-cols-2 print-cols-2"></div>
+      <div id="r-plano" class="print-break-before mt-14 scroll-mt-32">
+        <h3 class="flex items-center gap-2 text-xl font-bold tracking-tight"><i data-lucide="lightbulb" class="h-5 w-5 text-amber-400"></i> Plano de Boas Práticas do Especialista</h3>
+        <p class="mt-1 text-sm text-muted">Recomendações personalizadas pela faixa de nota de cada pilar: baixa (0–39%), média (40–69%) ou alta (70–100%).</p>
+        <div id="recommendations" class="mt-5 grid gap-5 lg:grid-cols-2 print-cols-2"></div>
       </div>
 
       <!-- Roteiro de migração -->
-      <div class="print-break-before mt-10">
-        <h3 class="flex items-center gap-2 text-xl font-bold text-slate-900"><i data-lucide="route" class="h-6 w-6 text-brand-600"></i> Roteiro Seguro de Migração</h3>
-        <p id="roadmapIntro" class="mt-1 text-sm text-slate-600"></p>
-        <ol id="roadmap" class="timeline mt-6 space-y-6"></ol>
+      <div id="r-roteiro" class="print-break-before mt-14 scroll-mt-32">
+        <h3 class="flex items-center gap-2 text-xl font-bold tracking-tight"><i data-lucide="route" class="h-5 w-5 text-accent"></i> Roteiro Seguro de Migração</h3>
+        <p id="roadmapIntro" class="mt-1 text-sm text-muted"></p>
+        <div id="roadmapGantt" class="card reveal mt-5 p-4"></div>
+        <ol id="roadmap" class="timeline mt-6 space-y-5"></ol>
       </div>
 
       <!-- Metodologia -->
-      <div class="card mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="flex items-center gap-2 text-lg font-bold text-slate-900"><i data-lucide="info" class="h-5 w-5 text-brand-600"></i> Metodologia de Cálculo</h3>
-        <div id="methodology" class="mt-3 text-sm text-slate-700"></div>
+      <div id="r-metodologia" class="card reveal mt-14 scroll-mt-32 p-6">
+        <h3 class="flex items-center gap-2 text-lg font-bold tracking-tight"><i data-lucide="sigma" class="h-5 w-5 text-accent"></i> Metodologia de cálculo</h3>
+        <div id="methodology" class="mt-4 text-sm text-muted"></div>
       </div>
 
       <!-- Assinaturas (somente impressão) -->
@@ -341,38 +493,60 @@
   </main>
 
   <!-- ===================== RODAPÉ ===================== -->
-  <footer class="mt-10 border-t border-slate-200 bg-white">
-    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div class="inline-flex max-w-xl items-start gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
-          <i data-lucide="shield-check" class="mt-0.5 h-6 w-6 shrink-0 text-emerald-700"></i>
-          <p class="text-sm"><strong>Privacy by Design (LGPD):</strong> Todos os cálculos são processados localmente no seu navegador.</p>
+  <footer class="border-t border-line/70">
+    <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div class="grid gap-8 md:grid-cols-[1.2fr_1fr]">
+        <div>
+          <div class="flex items-center gap-3">
+            <span data-logo class="inline-block h-8 w-8"></span>
+            <span class="font-bold tracking-tight">Jumbitos</span>
+          </div>
+          <div class="mt-5 inline-flex max-w-md items-start gap-3 rounded-xl border border-emerald-400/30 bg-emerald-400/[.07] p-4">
+            <i data-lucide="shield-check" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-400"></i>
+            <p class="text-sm text-fg/90"><strong class="text-emerald-300">Privacy by Design (LGPD):</strong> Todos os cálculos são processados localmente no seu navegador.</p>
+          </div>
         </div>
         <div>
-          <p class="text-sm font-bold uppercase tracking-wider text-slate-700">Especialistas autores</p>
+          <p class="eyebrow">Especialistas autores</p>
           <!-- Os nomes são definidos em APP_CONFIG.authors (no script abaixo) -->
-          <ul id="authorsList" class="mt-2 space-y-1 text-sm text-slate-700"></ul>
+          <ul id="authorsList" class="mt-3 space-y-2 text-sm"></ul>
         </div>
       </div>
-      <p class="mt-6 text-xs text-slate-600">© <span id="footerYear"></span> Jumbitos – Cloud &amp; Infra Readiness Advisor. Ferramenta educacional e orientativa; os resultados não substituem um assessment técnico completo.</p>
+      <p class="mt-10 border-t border-line/70 pt-6 text-xs text-muted">© <span id="footerYear"></span> Jumbitos – Cloud &amp; Infra Readiness Advisor. Ferramenta educacional e orientativa; os resultados não substituem um assessment técnico completo.</p>
     </div>
   </footer>
 
+  <!-- Painel animado de análise -->
+  <div id="analysisOverlay" class="fixed inset-0 z-50 hidden place-items-center bg-bg/80 p-4 backdrop-blur-md" role="status" aria-live="polite">
+    <div class="card w-full max-w-sm p-6 text-center shadow-2xl shadow-black/50 animate-fade-up">
+      <div class="relative mx-auto h-16 w-16">
+        <svg class="logo-spin absolute inset-0 h-16 w-16" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="rgb(var(--line))" stroke-width="3" />
+          <path d="M32 3a29 29 0 0 1 29 29" fill="none" stroke="rgb(var(--accent))" stroke-width="3" stroke-linecap="round" />
+        </svg>
+        <span data-logo class="absolute inset-3"></span>
+      </div>
+      <p class="mt-4 font-semibold">Analisando sua infraestrutura…</p>
+      <ul id="analysisList" class="mt-4 space-y-2 text-left text-sm text-muted"></ul>
+    </div>
+  </div>
+
   <!-- Notificação acessível -->
   <div id="toast" role="status" aria-live="polite"
-    class="pointer-events-none fixed bottom-4 left-1/2 z-50 hidden w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-center text-sm font-medium text-white shadow-xl"></div>
+    class="pointer-events-none fixed inset-x-4 bottom-5 z-50 mx-auto hidden max-w-md rounded-xl border border-line bg-surface-2 px-4 py-3 text-center text-sm font-medium shadow-2xl shadow-black/50"></div>
 
   <script>
   'use strict';
 
   /* =====================================================================
    * 1. CONFIGURAÇÃO GERAL
-   *    Altere aqui nomes dos autores e o nível ideal de referência do radar.
    * ===================================================================== */
   const APP_CONFIG = {
     appName: 'Jumbitos',
+    version: '2.0.0',
     idealLevel: 85,            // Linha de referência "nível ideal" no gráfico radar (0–100%)
     maxOptionScore: 4,         // Pontuação máxima de cada alternativa
+    analysisStepMs: 260,       // Duração de cada etapa da animação "Analisando…"
     // Créditos dos especialistas autores (nomes de exemplo — substitua livremente)
     authors: [
       { name: 'Ana Beatriz Moura', role: 'Arquiteta de Soluções Cloud (AWS / Azure)' },
@@ -382,41 +556,50 @@
   };
 
   /* =====================================================================
-   * 2. PILARES DO DIAGNÓSTICO E PESOS
+   * 2. PALETA DE TONS SEMÂNTICOS
+   *    c = cor na tela (tema escuro) · p = cor na impressão (fundo branco)
+   * ===================================================================== */
+  const TONES = {
+    red:     { c: '#f87171', p: '#b91c1c' },
+    orange:  { c: '#fb923c', p: '#c2410c' },
+    amber:   { c: '#fbbf24', p: '#92400e' },
+    yellow:  { c: '#facc15', p: '#854d0e' },
+    sky:     { c: '#38bdf8', p: '#0369a1' },
+    emerald: { c: '#34d399', p: '#047857' },
+    violet:  { c: '#a78bfa', p: '#6d28d9' },
+    teal:    { c: '#2dd4bf', p: '#0f766e' },
+    indigo:  { c: '#818cf8', p: '#4338ca' },
+    slate:   { c: '#94a3b8', p: '#475569' }
+  };
+  /** Gera o atributo style com as variáveis do tom (tela e impressão). */
+  function tone(name) {
+    const t = TONES[name] || TONES.slate;
+    return `--tone:${t.c};--tone-print:${t.p};`;
+  }
+
+  /* =====================================================================
+   * 3. PILARES DO DIAGNÓSTICO E PESOS
    *    weight     → peso no Score Geral de Prontidão (soma = 1,00)
-   *    riskWeight → peso no Índice de Risco Operacional (soma = 1,00)
+   *    riskWeight → peso no Índice de Risco Operacional (soma = 1,00).
    *                 Backup/Continuidade e Rede recebem os maiores pesos de
    *                 risco, pois são os pilares que mais causam indisponibilidade
    *                 e perda de dados durante uma migração.
    * ===================================================================== */
   const PILLARS = [
-    {
-      id: 'servidores', name: 'Servidores e Computação', short: 'Servidores', icon: 'server',
-      description: 'Idade do hardware, nível de virtualização e dependência de sistemas legados.',
-      weight: 0.25, riskWeight: 0.20, color: '#0284c7'
-    },
-    {
-      id: 'rede', name: 'Rede e Conectividade', short: 'Rede', icon: 'network',
-      description: 'Link de internet, redundância de conectividade e segurança de perímetro.',
-      weight: 0.20, riskWeight: 0.30, color: '#7c3aed'
-    },
-    {
-      id: 'dados', name: 'Dados e Armazenamento', short: 'Dados', icon: 'database',
-      description: 'Volume e crescimento dos dados e classificação de dados pessoais (LGPD).',
-      weight: 0.25, riskWeight: 0.15, color: '#0d9488'
-    },
-    {
-      id: 'backup', name: 'Backup e Continuidade', short: 'Backup', icon: 'archive-restore',
-      description: 'Aderência à regra 3-2-1, testes de restauração e metas de RPO/RTO.',
-      weight: 0.30, riskWeight: 0.35, color: '#c2410c'
-    }
+    { id: 'servidores', name: 'Servidores e Computação', short: 'Servidores', icon: 'server', tone: 'sky',
+      description: 'Idade do hardware, nível de virtualização e dependência de sistemas legados.', weight: 0.25, riskWeight: 0.20 },
+    { id: 'rede', name: 'Rede e Conectividade', short: 'Rede', icon: 'network', tone: 'violet',
+      description: 'Link de internet, redundância de conectividade e segurança de perímetro.', weight: 0.20, riskWeight: 0.30 },
+    { id: 'dados', name: 'Dados e Armazenamento', short: 'Dados', icon: 'database', tone: 'teal',
+      description: 'Volume e crescimento dos dados e classificação de dados pessoais (LGPD).', weight: 0.25, riskWeight: 0.15 },
+    { id: 'backup', name: 'Backup e Continuidade', short: 'Backup', icon: 'archive-restore', tone: 'orange',
+      description: 'Aderência à regra 3-2-1, testes de restauração e metas de RPO/RTO.', weight: 0.30, riskWeight: 0.35 }
   ];
 
   /* =====================================================================
-   * 3. SETORES E PORTES
+   * 4. SETORES E PORTES
    *    modelPoints → pontos somados a cada modelo de nuvem na recomendação.
-   *    regulated   → setor regulado / com dados sensíveis (agrava o risco
-   *                  quando a maturidade em LGPD é baixa).
+   *    regulated   → setor regulado / com dados sensíveis.
    *    timeFactor  → multiplicador de prazo do roteiro conforme o porte.
    * ===================================================================== */
   const SECTORS = [
@@ -456,7 +639,7 @@
   ];
 
   /* =====================================================================
-   * 4. PERGUNTAS ESTRATÉGICAS (2 por pilar)
+   * 5. PERGUNTAS ESTRATÉGICAS (2 por pilar)
    *    Cada alternativa tem pontuação de 0 (pior) a 4 (melhor) e texto
    *    descritivo. Para editar, basta alterar os textos abaixo.
    * ===================================================================== */
@@ -564,52 +747,49 @@
   ];
 
   /* =====================================================================
-   * 5. FAIXAS DE CLASSIFICAÇÃO, NÍVEIS DE RISCO E MODELOS DE NUVEM
+   * 6. FAIXAS DE CLASSIFICAÇÃO, NÍVEIS DE RISCO E MODELOS DE NUVEM
    * ===================================================================== */
-
-  // Selo de classificação do Score Geral (avaliado do maior "min" para o menor)
+  // Selo do Score Geral (avaliado do maior "min" para o menor)
   const CLASSIFICATION_BANDS = [
-    { min: 80, label: 'Líder Digital', range: '80–100%', color: '#047857', bg: '#d1fae5', ring: '#10b981', icon: 'award',
+    { min: 80, label: 'Líder Digital', range: '80–100%', tone: 'emerald', icon: 'award',
       desc: 'Infraestrutura madura e pronta para migração acelerada e modernização.' },
-    { min: 60, label: 'Estruturado', range: '60–79%', color: '#0369a1', bg: '#e0f2fe', ring: '#0ea5e9', icon: 'circle-check',
+    { min: 60, label: 'Estruturado', range: '60–79%', tone: 'sky', icon: 'circle-check',
       desc: 'Boa base técnica; a migração é viável com ajustes pontuais.' },
-    { min: 40, label: 'Em Transição', range: '40–59%', color: '#92400e', bg: '#fef3c7', ring: '#f59e0b', icon: 'trending-up',
+    { min: 40, label: 'Em Transição', range: '40–59%', tone: 'amber', icon: 'trending-up',
       desc: 'Fundamentos parciais; é preciso fortalecer pilares antes de migrar cargas críticas.' },
-    { min: 0, label: 'Crítico', range: '0–39%', color: '#b91c1c', bg: '#fee2e2', ring: '#ef4444', icon: 'triangle-alert',
+    { min: 0, label: 'Crítico', range: '0–39%', tone: 'red', icon: 'triangle-alert',
       desc: 'Lacunas estruturais relevantes; priorize estabilização antes de qualquer migração.' }
   ];
 
   // Níveis de risco operacional (índice de risco = 100 − prontidão ponderada pelo risco)
   const RISK_LEVELS = [
-    { key: 'baixo', label: 'Baixo', max: 24, color: '#047857', bg: '#d1fae5', timeFactor: 0.9,
+    { key: 'baixo', label: 'Baixo', max: 24, tone: 'emerald', timeFactor: 0.9,
       desc: 'Migração pode seguir em ondas com automação e janelas de mudança padrão.' },
-    { key: 'moderado', label: 'Moderado', max: 44, color: '#0369a1', bg: '#e0f2fe', timeFactor: 1.0,
+    { key: 'moderado', label: 'Moderado', max: 44, tone: 'sky', timeFactor: 1.0,
       desc: 'Migração viável com plano de rollback e validação por etapas.' },
-    { key: 'alto', label: 'Alto', max: 64, color: '#b45309', bg: '#ffedd5', timeFactor: 1.3,
+    { key: 'alto', label: 'Alto', max: 64, tone: 'orange', timeFactor: 1.3,
       desc: 'Exige fase prévia de estabilização, execução em paralelo e critérios rígidos de Go/No-Go.' },
-    { key: 'critico', label: 'Crítico', max: 100, color: '#b91c1c', bg: '#fee2e2', timeFactor: 1.6,
+    { key: 'critico', label: 'Crítico', max: 100, tone: 'red', timeFactor: 1.6,
       desc: 'Alto potencial de indisponibilidade ou perda de dados; não migre cargas críticas antes de mitigar os riscos.' }
   ];
 
   // Modelos de nuvem possíveis
   const CLOUD_MODELS = {
-    SaaS: { key: 'SaaS', name: 'SaaS', fullName: 'Software como Serviço', icon: 'layers', color: '#0369a1', timeFactor: 0.8,
+    SaaS: { key: 'SaaS', name: 'SaaS', fullName: 'Software como Serviço', icon: 'app-window', tone: 'sky', timeFactor: 0.8,
       description: 'Consumo de aplicações prontas (ERP, CRM, e-mail, colaboração) gerenciadas pelo fornecedor. Menor esforço operacional e adoção rápida.' },
-    PaaS: { key: 'PaaS', name: 'PaaS', fullName: 'Plataforma como Serviço', icon: 'cpu', color: '#6d28d9', timeFactor: 1.2,
+    PaaS: { key: 'PaaS', name: 'PaaS', fullName: 'Plataforma como Serviço', icon: 'blocks', tone: 'violet', timeFactor: 1.2,
       description: 'A empresa foca no código e nos dados; o provedor gerencia sistema operacional, runtime, banco de dados e escalabilidade.' },
-    IaaS: { key: 'IaaS', name: 'IaaS', fullName: 'Infraestrutura como Serviço', icon: 'server', color: '#0f766e', timeFactor: 1.0,
+    IaaS: { key: 'IaaS', name: 'IaaS', fullName: 'Infraestrutura como Serviço', icon: 'server', tone: 'teal', timeFactor: 1.0,
       description: 'Servidores virtuais, rede e armazenamento sob demanda, permitindo migrar (rehost) sistemas existentes com mínima alteração.' },
-    Hibrida: { key: 'Hibrida', name: 'Nuvem Híbrida', fullName: 'Abordagem Híbrida', icon: 'cloud-cog', color: '#9a3412', timeFactor: 1.15,
+    Hibrida: { key: 'Hibrida', name: 'Nuvem Híbrida', fullName: 'Abordagem Híbrida', icon: 'cloud-cog', tone: 'indigo', timeFactor: 1.15,
       description: 'Combina ambiente local (ou nuvem privada) com nuvem pública: cargas sensíveis ou dependentes de baixa latência ficam on-premises e o restante migra gradualmente.' }
   };
   // Critério de desempate: modelo de menor complexidade operacional vence
   const MODEL_TIEBREAK_ORDER = ['SaaS', 'PaaS', 'IaaS', 'Hibrida'];
 
   /* =====================================================================
-   * 6. BASE DE RECOMENDAÇÕES (Plano de Boas Práticas do Especialista)
+   * 7. BASE DE RECOMENDAÇÕES (Plano de Boas Práticas do Especialista)
    *    Faixas: baixa (< 40%), media (40–69%), alta (≥ 70%).
-   *    tag → tema principal (Migração, Backup 3-2-1, Alta Disponibilidade,
-   *          ERP/CRM, IA, LGPD, Segurança, FinOps).
    * ===================================================================== */
   const RECOMMENDATIONS = {
     servidores: {
@@ -695,20 +875,14 @@
     }
   };
 
-  // Cores dos selos de tema das recomendações
-  const TAG_STYLES = {
-    'Migração': { color: '#075985', bg: '#e0f2fe' },
-    'Backup 3-2-1': { color: '#9a3412', bg: '#ffedd5' },
-    'Alta Disponibilidade': { color: '#065f46', bg: '#d1fae5' },
-    'ERP/CRM': { color: '#3730a3', bg: '#e0e7ff' },
-    'IA': { color: '#6b21a8', bg: '#f3e8ff' },
-    'LGPD': { color: '#115e59', bg: '#ccfbf1' },
-    'Segurança': { color: '#991b1b', bg: '#fee2e2' },
-    'FinOps': { color: '#854d0e', bg: '#fef9c3' }
+  // Tom dos selos de tema das recomendações
+  const TAG_TONES = {
+    'Migração': 'sky', 'Backup 3-2-1': 'orange', 'Alta Disponibilidade': 'emerald', 'ERP/CRM': 'indigo',
+    'IA': 'violet', 'LGPD': 'teal', 'Segurança': 'red', 'FinOps': 'yellow'
   };
 
   /* =====================================================================
-   * 7. BASE DO ROTEIRO DE MIGRAÇÃO
+   * 8. BASE DO ROTEIRO DE MIGRAÇÃO
    *    baseWeeks é ajustado por: porte × nível de risco × modelo de nuvem.
    *    A fase "Estabilização" só é incluída quando o risco é Alto ou Crítico.
    * ===================================================================== */
@@ -802,26 +976,140 @@
   };
 
   /* =====================================================================
-   * 8. CASO EXEMPLO (DEMO) — empresa fictícia realista
+   * 9. GERADOR DE DEMO ALEATÓRIA
+   *    Cada clique cria uma empresa fictícia nova, combinando:
+   *     • um ARQUÉTIPO (cenário realista com tendência de maturidade por pilar);
+   *     • setor e porte compatíveis com o arquétipo;
+   *     • nome gerado a partir de partes (nunca repetido na mesma sessão);
+   *     • respostas = tendência do pilar ± ruído aleatório (limitadas a 0–4).
+   *    O mesmo arquétipo nunca aparece duas vezes seguidas.
    * ===================================================================== */
-  const DEMO_CASE = {
-    companyName: 'Metalúrgica Horizonte Ltda.',
-    sector: 'industria',
-    size: 'media',
-    // Servidores antigos com ERP legado, rede razoável, LGPD informal e backup sem cópia externa
-    answers: { q1: 2, q2: 1, q3: 3, q4: 2, q5: 2, q6: 1, q7: 2, q8: 1 }
+  const ALL_SECTOR_IDS = SECTORS.map((s) => s.id);
+  const DEMO_ARCHETYPES = [
+    { id: 'legado', name: 'Legado em risco', sectors: ['industria', 'comercio', 'logistica', 'outro'], sizes: ['pequena', 'media', 'grande'],
+      bias: { servidores: 0.6, rede: 1.8, dados: 1.5, backup: 0.9 },
+      story: 'ERP antigo rodando em servidor físico com mais de 8 anos, backup em HD externo levado para casa pelo gerente e nenhum teste de restauração recente.' },
+    { id: 'nativa', name: 'Nativa digital', sectors: ['tecnologia', 'servicos', 'comercio', 'educacao'], sizes: ['micro', 'pequena', 'media'],
+      bias: { servidores: 3.6, rede: 3.4, dados: 3.1, backup: 3.3 },
+      story: 'Operação nascida na nuvem, com ferramentas SaaS, pipelines automatizados e cultura de dados — o foco é otimizar custos e escalar.' },
+    { id: 'crescimento', name: 'Crescimento acelerado', sectors: ['comercio', 'logistica', 'tecnologia', 'servicos', 'agro'], sizes: ['pequena', 'media'],
+      bias: { servidores: 2.2, rede: 2.0, dados: 0.9, backup: 1.5 },
+      story: 'A empresa dobrou de tamanho em dois anos; os dados cresceram sem governança e o storage local está perto do limite.' },
+    { id: 'rede', name: 'Conectividade frágil', sectors: ['agro', 'industria', 'logistica', 'educacao', 'governo'], sizes: ['micro', 'pequena', 'media'],
+      bias: { servidores: 2.3, rede: 0.6, dados: 2.0, backup: 2.0 },
+      story: 'Unidades em regiões com link instável e sem redundância; qualquer queda de internet já paralisa o faturamento.' },
+    { id: 'regulada', name: 'Regulada em adequação', sectors: ['saude', 'financeiro', 'governo'], sizes: ['pequena', 'media', 'grande'],
+      bias: { servidores: 2.6, rede: 2.6, dados: 1.0, backup: 2.3 },
+      story: 'Infraestrutura razoável, mas o tratamento de dados pessoais sensíveis ainda não está mapeado e a adequação à LGPD é recente.' },
+    { id: 'modernizacao', name: 'Em modernização', sectors: ALL_SECTOR_IDS, sizes: ['media', 'grande'],
+      bias: { servidores: 2.9, rede: 2.9, dados: 2.6, backup: 2.7 },
+      story: 'Ambiente virtualizado e com políticas definidas; a TI quer acelerar a migração com segurança e padronizar a governança.' },
+    { id: 'posincidente', name: 'Pós-incidente de ransomware', sectors: ALL_SECTOR_IDS, sizes: ['micro', 'pequena', 'media'],
+      bias: { servidores: 2.0, rede: 1.4, dados: 1.8, backup: 0.5 },
+      story: 'Sofreu um ataque de ransomware no último ano e recuperou só parte dos dados; a diretoria exige um plano de continuidade antes de migrar.' },
+    { id: 'enxuta', name: 'Pequena e enxuta', sectors: ['servicos', 'comercio', 'saude', 'educacao', 'outro'], sizes: ['micro', 'pequena'],
+      bias: { servidores: 1.4, rede: 1.6, dados: 1.4, backup: 1.2 },
+      story: 'Sem equipe de TI dedicada: um técnico terceirizado cuida de tudo e os arquivos ficam em um computador usado como "servidor" no escritório.' }
+  ];
+
+  // Partes de nomes fictícios (combinadas aleatoriamente)
+  const NAME_CORES = ['Horizonte', 'Aurora', 'Vale Verde', 'Atlântica', 'Pinheiral', 'Serra Nova', 'Estrela do Sul', 'Ipê Dourado', 'Lumen',
+    'Vértice', 'Nimbus', 'Prisma', 'Âncora', 'Bússola', 'Cerrado Vivo', 'Maré Alta', 'Ponto Norte', 'Alvorada', 'Jacarandá', 'Sete Lagos',
+    'Rio Sereno', 'Cristal', 'Órion', 'Quintal Azul', 'Vento Leste', 'Pedra Branca', 'Nova Trilha', 'Girassol', 'Farol', 'Aroeira'];
+  const NAME_CITIES = ['Vale das Palmeiras', 'Lagoa Serena', 'Horizonte Claro', 'Pedra Azul do Sul', 'Ribeirão Dourado', 'Campos de Aurora', 'Serra do Lume', 'Porto Sereno'];
+  const NAME_TYPES = {
+    industria: { pattern: 'type-core', types: ['Metalúrgica', 'Plásticos', 'Têxtil', 'Usinagem', 'Alimentos', 'Embalagens', 'Autopeças'] },
+    comercio: { pattern: 'type-core', types: ['Supermercados', 'Magazine', 'Distribuidora', 'Atacado', 'Moda', 'Farmácias', 'Materiais de Construção'] },
+    servicos: { pattern: 'type-core', types: ['Contabilidade', 'Advocacia', 'Consultoria', 'Engenharia', 'Arquitetura', 'Marketing'] },
+    saude: { pattern: 'type-core', types: ['Clínica', 'Hospital', 'Laboratório', 'Odontologia', 'Centro de Diagnóstico', 'Policlínica'] },
+    financeiro: { pattern: 'type-core', types: ['Cooperativa de Crédito', 'Corretora de Seguros', 'Financeira', 'Gestora de Investimentos'] },
+    educacao: { pattern: 'type-core', types: ['Colégio', 'Faculdade', 'Escola de Idiomas', 'Instituto de Ensino', 'Escola Técnica'] },
+    tecnologia: { pattern: 'core-type', types: ['Software', 'Tech', 'Sistemas', 'Labs', 'Digital', 'Data'] },
+    logistica: { pattern: 'type-core', types: ['Transportadora', 'Logística', 'Expresso', 'Armazéns Gerais', 'Cargas'] },
+    agro: { pattern: 'type-core', types: ['Agropecuária', 'Cooperativa Agrícola', 'Fazendas', 'Agro', 'Sementes'] },
+    governo: { pattern: 'type-city', types: ['Prefeitura Municipal de', 'Autarquia de Água e Esgoto de', 'Consórcio Intermunicipal de Saúde de', 'Câmara Municipal de'] },
+    outro: { pattern: 'type-core', types: ['Grupo', 'Companhia', 'Holding', 'Organização'] }
   };
 
+  // Estado do gerador (garante que a demo nunca se repita na sessão)
+  const demoState = { usedNames: new Set(), lastArchetype: null, lastSignature: null, count: 0 };
+
+  /** Número aleatório em [0, 1) — usa crypto quando disponível. */
+  function random() {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const buf = new Uint32Array(1);
+      window.crypto.getRandomValues(buf);
+      return buf[0] / 4294967296;
+    }
+    return Math.random();
+  }
+  function pick(list) { return list[Math.floor(random() * list.length)]; }
+  function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+
+  /** Monta um nome fictício compatível com setor e porte. */
+  function buildCompanyName(sectorId, sizeId) {
+    const spec = NAME_TYPES[sectorId] || NAME_TYPES.outro;
+    const type = pick(spec.types);
+    if (spec.pattern === 'type-city') return `${type} ${pick(NAME_CITIES)}`;
+    const core = pick(NAME_CORES);
+    const base = spec.pattern === 'core-type' ? `${core} ${type}` : `${type} ${core}`;
+    const suffix = sizeId === 'grande' ? 'S.A.' : (sizeId === 'micro' ? pick(['ME', 'Ltda.']) : 'Ltda.');
+    return `${base} ${suffix}`;
+  }
+
+  /** Gera um caso exemplo aleatório e inédito na sessão. */
+  function generateRandomDemo() {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const candidates = DEMO_ARCHETYPES.filter((a) => a.id !== demoState.lastArchetype);
+      const archetype = pick(candidates);
+      const sector = pick(archetype.sectors);
+      const size = pick(archetype.sizes);
+      let companyName = buildCompanyName(sector, size);
+      if (demoState.usedNames.has(companyName)) {
+        if (attempt < 150) continue;
+        companyName = `${companyName} (${demoState.count + 1})`; // fallback raríssimo
+      }
+      const answers = {};
+      QUESTIONS.forEach((q) => {
+        const noise = (random() * 2 - 1) * 0.9;           // ruído entre −0,9 e +0,9
+        answers[q.id] = clamp(Math.round(archetype.bias[q.pillar] + noise), 0, APP_CONFIG.maxOptionScore);
+      });
+      const signature = `${companyName}|${sector}|${size}|${QUESTIONS.map((q) => answers[q.id]).join('')}`;
+      if (signature === demoState.lastSignature) continue;
+
+      demoState.usedNames.add(companyName);
+      demoState.lastArchetype = archetype.id;
+      demoState.lastSignature = signature;
+      demoState.count += 1;
+      return { companyName, sector, size, answers, archetype: { id: archetype.id, name: archetype.name, story: archetype.story } };
+    }
+    throw new Error('Não foi possível gerar uma demo inédita.');
+  }
+
   /* =====================================================================
-   * 9. UTILITÁRIOS
+   * 10. ESTADO E UTILITÁRIOS
    * ===================================================================== */
   const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let radarChartInstance = null;   // instância atual do gráfico radar
-  let lastDiagnosis = null;        // último resultado calculado
-  let toastTimer = null;
+  const scrollBehavior = () => (prefersReducedMotion ? 'auto' : 'smooth');
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  /** Escapa texto do usuário antes de inserir via innerHTML (evita XSS). */
+  const STEPS = [
+    { id: 'perfil', label: 'Perfil' },
+    ...PILLARS.map((p) => ({ id: p.id, label: p.short, pillar: p }))
+  ];
+
+  let currentStep = 0;
+  let radarChartInstance = null;  // instância atual do gráfico radar
+  let lastDiagnosis = null;       // último resultado calculado
+  let currentDemo = null;         // cenário da demo carregada (se houver)
+  let isGenerating = false;
+  let lastInputWasPointer = false;
+  let toastTimer = null;
+  let revealObserver = null;
+
+  /** Escapa texto antes de inserir via innerHTML (evita XSS). */
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -835,17 +1123,24 @@
     }
   }
 
-  /** Cor da pontuação de uma alternativa (0 = vermelho … 4 = verde), com contraste AA para texto branco. */
-  function scoreColor(score) {
-    return ['#b91c1c', '#c2410c', '#a16207', '#0369a1', '#047857'][score] || '#475569';
+  /** SVG do logo (nuvem + J). Cada instância recebe um id de gradiente único. */
+  let logoSeq = 0;
+  function logoSvg() {
+    const id = `logoGrad${++logoSeq}`;
+    return `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden="true">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="#0d1424" stroke="url(#${id})" stroke-width="1.6"/>
+      <path d="M14 31a6 6 0 0 1 1.4-11.85A9.2 9.2 0 0 1 32.8 17.3 6.6 6.6 0 0 1 34 31" fill="none" stroke="url(#${id})" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M27 22.5v7.5a4.5 4.5 0 0 1-9 0" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+    </svg>`;
   }
 
-  /** Cor de uma nota percentual (usada em barras de progresso). */
-  function percentColor(percent) {
-    if (percent >= 80) return '#059669';
-    if (percent >= 60) return '#0284c7';
-    if (percent >= 40) return '#d97706';
-    return '#dc2626';
+  const scoreTone = (score) => ['red', 'orange', 'amber', 'sky', 'emerald'][score] || 'slate';
+  function percentTone(percent) {
+    if (percent >= 80) return 'emerald';
+    if (percent >= 60) return 'sky';
+    if (percent >= 40) return 'amber';
+    return 'red';
   }
 
   function getPillar(id) { return PILLARS.find((p) => p.id === id); }
@@ -856,6 +1151,9 @@
     const toast = $('#toast');
     toast.textContent = message;
     toast.classList.remove('hidden');
+    toast.classList.remove('animate-fade-up');
+    void toast.offsetWidth; // reinicia a animação
+    toast.classList.add('animate-fade-up');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
   }
@@ -868,91 +1166,88 @@
   function generateReportId(date) {
     const pad = (n) => String(n).padStart(2, '0');
     const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-    const random = Math.floor(Math.random() * 9000 + 1000);
-    return `JMB-${stamp}-${random}`;
+    return `JMB-${stamp}-${Math.floor(random() * 9000 + 1000)}`;
   }
 
   /* =====================================================================
-   * 10. RENDERIZAÇÃO DO FORMULÁRIO
+   * 11. RENDERIZAÇÃO DO ASSISTENTE (formulário em etapas)
    * ===================================================================== */
 
   /** Preenche as listas suspensas de Setor e Porte. */
   function renderProfileOptions() {
-    const sectorSelect = $('#sector');
-    SECTORS.forEach((s) => sectorSelect.insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
-    const sizeSelect = $('#size');
-    SIZES.forEach((s) => sizeSelect.insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
+    SECTORS.forEach((s) => $('#sector').insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
+    SIZES.forEach((s) => $('#size').insertAdjacentHTML('beforeend', `<option value="${s.id}">${escapeHtml(s.label)}</option>`));
   }
 
-  /** Gera os blocos de pilares com as perguntas e alternativas (radio buttons acessíveis). */
-  function renderQuestions() {
-    const container = $('#questionsContainer');
-    let questionNumber = 0;
+  /** Indicador de etapas (Perfil → 4 pilares). Cada etapa é clicável. */
+  function renderStepper() {
+    $('#stepper').innerHTML = STEPS.map((step, i) => `
+      <li>
+        <button type="button" class="step-btn" data-goto-step="${i}" aria-label="Etapa ${i + 1}: ${escapeHtml(step.label)}">
+          <span class="step-dot"><span class="step-num">${i + 1}</span><i data-lucide="check" class="step-check h-3.5 w-3.5"></i></span>
+          <span class="hidden truncate sm:block">${escapeHtml(step.label)}</span>
+        </button>
+      </li>`).join('');
+  }
 
-    container.innerHTML = PILLARS.map((pillar) => {
-      const pillarQuestions = QUESTIONS.filter((q) => q.pillar === pillar.id);
-      const questionsHtml = pillarQuestions.map((q) => {
+  /** Gera um painel por pilar com as perguntas e alternativas (radio buttons acessíveis). */
+  function renderQuestions() {
+    let questionNumber = 0;
+    $('#questionsContainer').innerHTML = PILLARS.map((pillar, pIndex) => {
+      const questionsHtml = QUESTIONS.filter((q) => q.pillar === pillar.id).map((q) => {
         questionNumber += 1;
         const optionsHtml = q.options.map((opt) => `
-          <label class="block cursor-pointer">
-            <input type="radio" name="${q.id}" value="${opt.score}" class="peer sr-only" />
-            <span class="flex items-start gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 transition hover:border-sky-300 hover:bg-sky-50/40 peer-checked:border-brand-600 peer-checked:bg-sky-50 peer-focus-visible:ring-4 peer-focus-visible:ring-sky-300">
-              <span class="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-extrabold text-white" style="background:${scoreColor(opt.score)}" aria-hidden="true">${opt.score}</span>
+          <label class="opt block cursor-pointer">
+            <input type="radio" name="${q.id}" value="${opt.score}" class="sr-only" />
+            <span class="opt-box flex items-start gap-3 rounded-xl border border-line bg-surface-2/40 p-3.5">
+              <span class="t-chip tabular grid h-9 w-9 shrink-0 place-items-center rounded-lg text-sm font-bold" style="${tone(scoreTone(opt.score))}" aria-hidden="true">${opt.score}</span>
               <span class="min-w-0 flex-1">
                 <span class="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span class="font-semibold text-slate-900">${escapeHtml(opt.label)}</span>
-                  <span class="text-xs font-semibold text-slate-600">Pontuação: ${opt.score}/${APP_CONFIG.maxOptionScore}</span>
+                  <span class="font-medium text-fg">${escapeHtml(opt.label)}</span>
+                  <span class="tabular text-xs text-muted">Pontuação: ${opt.score}/${APP_CONFIG.maxOptionScore}</span>
                 </span>
-                <span class="mt-0.5 block text-sm leading-snug text-slate-600">${escapeHtml(opt.desc)}</span>
+                <span class="mt-0.5 block text-sm leading-snug text-muted">${escapeHtml(opt.desc)}</span>
               </span>
+              <span class="opt-check mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-on-accent" aria-hidden="true"><i data-lucide="check" class="h-3.5 w-3.5"></i></span>
             </span>
           </label>`).join('');
 
         return `
-          <fieldset id="fs-${q.id}" class="question rounded-2xl border-2 border-transparent p-1 transition sm:p-2" data-qid="${q.id}" aria-describedby="help-${q.id}">
-            <legend class="sr-only">Pergunta ${questionNumber}: ${escapeHtml(q.title)}</legend>
-            <p class="flex items-start gap-2 text-base font-bold text-slate-900" aria-hidden="true">
-              <span class="mt-0.5 grid h-6 min-w-[1.5rem] place-items-center rounded-full bg-slate-900 px-1.5 text-xs text-white">${questionNumber}</span>
-              <span>${escapeHtml(q.title)}</span>
+          <fieldset id="fs-${q.id}" class="question rounded-2xl border border-transparent p-1 transition sm:p-2" data-qid="${q.id}" aria-describedby="help-${q.id}">
+            <legend class="sr-only">Pergunta ${questionNumber} de ${QUESTIONS.length}: ${escapeHtml(q.title)}</legend>
+            <p class="eyebrow" aria-hidden="true">Pergunta ${questionNumber} de ${QUESTIONS.length}</p>
+            <p class="mt-1 text-base font-semibold leading-snug text-fg sm:text-lg" aria-hidden="true">${escapeHtml(q.title)}</p>
+            <p id="help-${q.id}" class="mt-1 text-sm text-muted">${escapeHtml(q.help)}</p>
+            <p class="question-error-msg mt-2 hidden items-center gap-1.5 text-sm font-medium text-red-400">
+              <i data-lucide="circle-alert" class="h-4 w-4"></i> Selecione uma alternativa para esta pergunta.
             </p>
-            <p id="help-${q.id}" class="mb-3 ml-8 mt-1 text-sm text-slate-600">${escapeHtml(q.help)}</p>
-            <p class="question-error-msg mb-3 ml-8 hidden items-center gap-1.5 text-sm font-semibold text-red-700">
-              <i data-lucide="triangle-alert" class="h-4 w-4"></i> Selecione uma alternativa para esta pergunta.
-            </p>
-            <div class="grid gap-2">${optionsHtml}</div>
+            <div class="mt-4 grid gap-2">${optionsHtml}</div>
           </fieldset>`;
       }).join('');
 
       return `
-        <section class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="pillar-title-${pillar.id}">
-          <header class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
-            <div class="flex items-start gap-3">
-              <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style="background:${pillar.color}">
-                <i data-lucide="${pillar.icon}" class="h-6 w-6"></i>
-              </span>
+        <div class="step-panel" data-step-panel="${pIndex + 1}" hidden>
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="flex items-start gap-4">
+              <span class="t-chip grid h-12 w-12 shrink-0 place-items-center rounded-xl" style="${tone(pillar.tone)}"><i data-lucide="${pillar.icon}" class="h-6 w-6"></i></span>
               <div>
-                <h2 id="pillar-title-${pillar.id}" class="text-lg font-bold text-slate-900">${escapeHtml(pillar.name)}</h2>
-                <p class="text-sm text-slate-600">${escapeHtml(pillar.description)}</p>
+                <p class="eyebrow">Etapa ${pIndex + 2} de ${STEPS.length} · Pilar ${pIndex + 1} de ${PILLARS.length}</p>
+                <h3 class="mt-1 text-xl font-bold tracking-tight focus:outline-none" tabindex="-1" data-step-heading>${escapeHtml(pillar.name)}</h3>
+                <p class="mt-0.5 text-sm text-muted">${escapeHtml(pillar.description)}</p>
               </div>
             </div>
-            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Peso no score: ${Math.round(pillar.weight * 100)}%</span>
-          </header>
-          <div class="space-y-6">${questionsHtml}</div>
-        </section>`;
+            <span class="chip">Peso no score: ${Math.round(pillar.weight * 100)}%</span>
+          </div>
+          <div class="mt-7 space-y-8">${questionsHtml}</div>
+        </div>`;
     }).join('');
   }
 
   /* =====================================================================
-   * 11. LEITURA, PROGRESSO E VALIDAÇÃO DO FORMULÁRIO
+   * 12. NAVEGAÇÃO, PROGRESSO E VALIDAÇÃO
    * ===================================================================== */
-
-  /** Lê o perfil da empresa. */
   function collectProfile() {
-    return {
-      companyName: $('#companyName').value.trim(),
-      sector: $('#sector').value,
-      size: $('#size').value
-    };
+    return { companyName: $('#companyName').value.trim(), sector: $('#sector').value, size: $('#size').value };
   }
 
   /** Lê as respostas marcadas. Perguntas sem resposta ficam como null. */
@@ -965,97 +1260,177 @@
     return answers;
   }
 
-  /** Atualiza a barra de progresso e remove o destaque de erro das perguntas respondidas. */
+  /** Verifica se uma etapa está completa. */
+  function isStepComplete(index, profile = collectProfile(), answers = collectAnswers()) {
+    if (index === 0) return Boolean(profile.companyName && profile.sector && profile.size);
+    const pillar = STEPS[index].pillar;
+    return QUESTIONS.filter((q) => q.pillar === pillar.id).every((q) => answers[q.id] !== null);
+  }
+
+  /** Atualiza barra de progresso, indicador de etapas e destaques de erro. */
   function updateProgress() {
+    const profile = collectProfile();
     const answers = collectAnswers();
     const answered = Object.values(answers).filter((v) => v !== null).length;
     const total = QUESTIONS.length;
     $('#progressFill').style.width = `${(answered / total) * 100}%`;
-    $('#progressText').textContent = `${answered} de ${total} perguntas respondidas`;
+    $('#progressText').textContent = `${answered} de ${total} respostas`;
     $('#progressBar').setAttribute('aria-valuenow', String(answered));
-    QUESTIONS.forEach((q) => {
-      if (answers[q.id] !== null) $(`#fs-${q.id}`).classList.remove('question-error');
+    QUESTIONS.forEach((q) => { if (answers[q.id] !== null) $(`#fs-${q.id}`).classList.remove('question-error'); });
+    $$('#stepper .step-btn').forEach((btn, i) => {
+      const done = isStepComplete(i, profile, answers);
+      btn.classList.toggle('is-done', done && i !== currentStep);
+      btn.classList.toggle('is-current', i === currentStep);
+      if (i === currentStep) btn.setAttribute('aria-current', 'step'); else btn.removeAttribute('aria-current');
+      btn.setAttribute('aria-label', `Etapa ${i + 1}: ${STEPS[i].label}${done ? ' (concluída)' : ''}`);
     });
   }
 
-  /** Marca/desmarca o erro de um campo do perfil. */
+  /** Exibe a etapa indicada, com animação e gerenciamento de foco. */
+  function goToStep(index, { focus = true, scroll = true } = {}) {
+    currentStep = clamp(index, 0, STEPS.length - 1);
+    $$('[data-step-panel]').forEach((panel) => { panel.hidden = Number(panel.dataset.stepPanel) !== currentStep; });
+    const isLast = currentStep === STEPS.length - 1;
+    $('#btnPrev').disabled = currentStep === 0;
+    $('#btnNextLabel').textContent = isLast ? 'Gerar diagnóstico' : 'Próximo';
+    $('#btnNext').classList.remove('is-ready');
+    hideValidation();
+    updateProgress();
+    if (scroll) {
+      const form = $('#formSection');
+      if (form.getBoundingClientRect().top < 0 || form.getBoundingClientRect().top > window.innerHeight * 0.5) {
+        form.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+      }
+    }
+    if (focus) {
+      const heading = document.querySelector(`[data-step-panel="${currentStep}"] [data-step-heading]`);
+      if (heading) heading.focus({ preventScroll: true });
+    }
+  }
+
   function setFieldError(fieldId, hasError) {
     const field = $(`#${fieldId}`);
-    const msg = $(`#${fieldId}Error`);
-    msg.classList.toggle('hidden', !hasError);
+    $(`#${fieldId}Error`).classList.toggle('hidden', !hasError);
     field.setAttribute('aria-invalid', hasError ? 'true' : 'false');
-    field.classList.toggle('border-red-600', hasError);
-    field.classList.toggle('border-slate-300', !hasError);
+    field.classList.toggle('!border-red-400', hasError);
   }
 
-  /**
-   * Valida perfil e respostas. Retorna true quando tudo está preenchido.
-   * Caso contrário, exibe uma mensagem amigável listando o que falta,
-   * com atalhos para cada pendência.
-   */
-  function validateForm(profile, answers) {
-    const missingProfile = [];
-    if (!profile.companyName) missingProfile.push({ id: 'companyName', label: 'Nome da Empresa' });
-    if (!profile.sector) missingProfile.push({ id: 'sector', label: 'Setor' });
-    if (!profile.size) missingProfile.push({ id: 'size', label: 'Porte' });
-    ['companyName', 'sector', 'size'].forEach((id) => setFieldError(id, missingProfile.some((m) => m.id === id)));
-
-    const missingQuestions = [];
-    QUESTIONS.forEach((q, index) => {
-      const missing = answers[q.id] === null;
-      $(`#fs-${q.id}`).classList.toggle('question-error', missing);
-      if (missing) missingQuestions.push({ id: `fs-${q.id}`, label: `Pergunta ${index + 1} – ${q.short} (${getPillar(q.pillar).short})`, focusName: q.id });
-    });
-
+  function hideValidation() {
     const box = $('#validationMessage');
-    if (missingProfile.length === 0 && missingQuestions.length === 0) {
-      box.classList.add('hidden');
-      box.innerHTML = '';
-      return true;
-    }
+    box.classList.add('hidden');
+    box.innerHTML = '';
+  }
 
-    const items = [
-      ...missingProfile.map((m) => `<li><button type="button" class="rounded text-left font-semibold underline underline-offset-2 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" data-goto-field="${m.id}">${escapeHtml(m.label)}</button></li>`),
-      ...missingQuestions.map((m) => `<li><button type="button" class="rounded text-left font-semibold underline underline-offset-2 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" data-goto-question="${m.focusName}">${escapeHtml(m.label)}</button></li>`)
-    ].join('');
-
-    const qCount = missingQuestions.length;
-    const qText = qCount > 0 ? `${qCount === 1 ? 'Falta responder 1 pergunta' : `Faltam ${qCount} perguntas`}` : '';
-    const pText = missingProfile.length > 0 ? `${qText ? ' e ' : ''}${missingProfile.length === 1 ? 'falta 1 dado do perfil' : `faltam ${missingProfile.length} dados do perfil`}` : '';
-
+  /** Mostra a mensagem amigável com atalhos para as pendências. */
+  function showValidation(title, items) {
+    const box = $('#validationMessage');
+    const list = items.map((item) => `
+      <li><button type="button" class="rounded text-left font-medium text-amber-200 underline decoration-amber-400/50 underline-offset-4 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        data-goto-step="${item.step}" data-goto-target="${item.target}">${escapeHtml(item.label)}</button></li>`).join('');
     box.innerHTML = `
       <div class="flex items-start gap-3">
-        <i data-lucide="triangle-alert" class="mt-0.5 h-6 w-6 shrink-0 text-amber-700"></i>
-        <div>
-          <p class="font-bold">Quase lá! ${escapeHtml((qText + pText).replace(/^./, (c) => c.toUpperCase()))} para gerar um laudo confiável.</p>
-          <p class="mt-1 text-sm">Clique em um item para ir direto até ele:</p>
-          <ul class="mt-2 grid list-disc gap-x-10 gap-y-1 pl-5 text-sm lg:grid-cols-2">${items}</ul>
+        <i data-lucide="triangle-alert" class="mt-0.5 h-5 w-5 shrink-0 text-amber-300"></i>
+        <div class="min-w-0">
+          <p class="font-semibold text-amber-100">${escapeHtml(title)}</p>
+          <p class="mt-1 text-sm text-amber-100/80">Clique em um item para ir direto até ele:</p>
+          <ul class="mt-2 grid list-disc gap-x-10 gap-y-1 pl-5 text-sm lg:grid-cols-2">${list}</ul>
         </div>
       </div>`;
     box.classList.remove('hidden');
+    box.classList.remove('animate-fade-up');
+    void box.offsetWidth;
+    box.classList.add('animate-fade-up');
     refreshIcons();
-    box.focus();
+    box.focus({ preventScroll: true });
+    box.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest' });
+  }
+
+  /** Lista as pendências (perfil e perguntas). Se onlyStep for informado, restringe à etapa. */
+  function getMissingItems(profile, answers, onlyStep = null) {
+    const missing = [];
+    if (onlyStep === null || onlyStep === 0) {
+      if (!profile.companyName) missing.push({ step: 0, target: 'companyName', label: 'Nome da empresa' });
+      if (!profile.sector) missing.push({ step: 0, target: 'sector', label: 'Setor' });
+      if (!profile.size) missing.push({ step: 0, target: 'size', label: 'Porte' });
+    }
+    QUESTIONS.forEach((q, i) => {
+      const step = PILLARS.findIndex((p) => p.id === q.pillar) + 1;
+      if ((onlyStep === null || onlyStep === step) && answers[q.id] === null) {
+        missing.push({ step, target: `fs-${q.id}`, label: `Pergunta ${i + 1} – ${q.short} (${getPillar(q.pillar).short})` });
+      }
+    });
+    return missing;
+  }
+
+  /** Marca visualmente os campos/perguntas pendentes. */
+  function markMissing(missing) {
+    ['companyName', 'sector', 'size'].forEach((id) => setFieldError(id, missing.some((m) => m.target === id)));
+    QUESTIONS.forEach((q) => $(`#fs-${q.id}`).classList.toggle('question-error', missing.some((m) => m.target === `fs-${q.id}`)));
+  }
+
+  /**
+   * Validação completa: retorna true quando tudo está preenchido. Caso
+   * contrário, impede o diagnóstico e mostra uma mensagem amigável.
+   */
+  function validateForm(profile, answers) {
+    const missing = getMissingItems(profile, answers);
+    markMissing(missing);
+    if (missing.length === 0) { hideValidation(); return true; }
+    const qCount = missing.filter((m) => m.step > 0).length;
+    const pCount = missing.length - qCount;
+    const parts = [];
+    if (qCount) parts.push(qCount === 1 ? 'falta responder 1 pergunta' : `faltam ${qCount} perguntas`);
+    if (pCount) parts.push(pCount === 1 ? '1 dado do perfil' : `${pCount} dados do perfil`);
+    const text = parts.join(' e ');
+    showValidation(`Quase lá! ${text.charAt(0).toUpperCase()}${text.slice(1)} para gerar um laudo confiável.`, missing);
     return false;
   }
 
-  /** Atalhos da mensagem de validação: leva o foco ao campo/pergunta pendente. */
-  function handleValidationShortcut(event) {
-    const fieldBtn = event.target.closest('[data-goto-field]');
-    const questionBtn = event.target.closest('[data-goto-question]');
-    if (fieldBtn) {
-      const el = $(`#${fieldBtn.dataset.gotoField}`);
-      el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-      el.focus({ preventScroll: true });
-    } else if (questionBtn) {
-      const fs = $(`#fs-${questionBtn.dataset.gotoQuestion}`);
-      fs.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-      const firstRadio = fs.querySelector('input[type="radio"]');
-      if (firstRadio) firstRadio.focus({ preventScroll: true });
+  /** Avança para a próxima etapa, validando apenas a etapa atual. */
+  function nextStep() {
+    const missing = getMissingItems(collectProfile(), collectAnswers(), currentStep);
+    markMissing(missing);
+    if (missing.length > 0) {
+      showValidation(currentStep === 0 ? 'Complete o perfil da empresa para continuar.' : 'Responda as perguntas deste pilar para continuar.', missing);
+      return;
+    }
+    goToStep(currentStep + 1);
+  }
+
+  /** Atalhos da mensagem de validação e do indicador de etapas. */
+  function handleGoto(event) {
+    const btn = event.target.closest('[data-goto-step]');
+    if (!btn) return;
+    const step = Number(btn.dataset.gotoStep);
+    const target = btn.dataset.gotoTarget;
+    const keepMessage = Boolean(target);
+    const html = $('#validationMessage').innerHTML;
+    goToStep(step, { focus: !target });
+    if (keepMessage && html) { $('#validationMessage').innerHTML = html; $('#validationMessage').classList.remove('hidden'); refreshIcons(); }
+    if (target) {
+      const el = document.getElementById(target);
+      if (!el) return;
+      el.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+      const focusable = el.matches('input, select') ? el : el.querySelector('input[type="radio"]');
+      if (focusable) focusable.focus({ preventScroll: true });
+    }
+  }
+
+  /** Após clicar numa resposta, leva à próxima pergunta pendente do pilar ou destaca "Próximo". */
+  function guideAfterAnswer(input) {
+    if (!lastInputWasPointer) return;
+    const panel = input.closest('[data-step-panel]');
+    const pending = Array.from(panel.querySelectorAll('fieldset.question')).find((fs) => !fs.querySelector('input:checked'));
+    if (pending) {
+      setTimeout(() => pending.scrollIntoView({ behavior: scrollBehavior(), block: 'center' }), 180);
+    } else {
+      const btn = $('#btnNext');
+      btn.classList.remove('is-ready'); void btn.offsetWidth; btn.classList.add('is-ready');
     }
   }
 
   /* =====================================================================
-   * 12. LÓGICA DE CÁLCULO (documentada)
+   * 13. LÓGICA DE CÁLCULO (documentada)
    * ===================================================================== */
 
   /**
@@ -1084,15 +1459,12 @@
     return Math.round(weighted / totalWeight);
   }
 
-  /**
-   * SELO DE CLASSIFICAÇÃO
-   *   Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100%
-   */
+  /** SELO: Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100% */
   function classifyScore(score) {
     return CLASSIFICATION_BANDS.find((band) => score >= band.min);
   }
 
-  /** Faixa da nota de um pilar para o Plano de Boas Práticas: baixa (<40), média (40–69), alta (≥70). */
+  /** Faixa da nota de um pilar: baixa (<40), média (40–69), alta (≥70). */
   function getTier(percent) {
     if (percent < 40) return 'baixa';
     if (percent < 70) return 'media';
@@ -1105,10 +1477,10 @@
    *      riskWeight: Backup 35% · Rede 30% · Servidores 20% · Dados 15%
    *   2) Índice de risco = 100 − prontidão ponderada pelo risco
    *   3) Nível pelo índice: Baixo ≤ 24 · Moderado 25–44 · Alto 45–64 · Crítico ≥ 65
-   *   4) Agravantes (regras de segurança):
-   *      a) Backup inexistente (Q7 = 0) ou restauração nunca testada (Q8 = 0) → nível mínimo "Alto"
-   *      b) Pilar Rede abaixo de 25% → nível mínimo "Alto" (a nuvem dependerá de um link frágil)
-   *      c) Backup e Rede ambos abaixo de 40% → nível mínimo "Crítico"
+   *   4) Agravantes:
+   *      a) Backup inexistente (Q7 = 0) ou restauração nunca testada (Q8 = 0) → mínimo "Alto"
+   *      b) Pilar Rede abaixo de 25% → mínimo "Alto"
+   *      c) Backup e Rede ambos abaixo de 40% → mínimo "Crítico"
    *      d) Setor regulado (Saúde, Financeiro, Governo) com LGPD ≤ 1 (Q6) → sobe 1 nível
    */
   function calculateOperationalRisk(pillarScores, answers, profile) {
@@ -1122,13 +1494,11 @@
     const factors = [];
     const raiseTo = (minIndex) => { if (levelIndex < minIndex) levelIndex = minIndex; };
 
-    // Fatores descritivos (pilares com maior peso de risco abaixo de 60%)
     if (byId.backup.exact < 60) factors.push(`Backup e Continuidade em ${byId.backup.percent}%: risco de perda de dados durante o cutover.`);
     if (byId.rede.exact < 60) factors.push(`Rede e Conectividade em ${byId.rede.percent}%: risco de indisponibilidade dos sistemas após a migração.`);
     if (byId.servidores.exact < 40) factors.push(`Servidores em ${byId.servidores.percent}%: legados e hardware antigo aumentam a complexidade da migração.`);
     if (byId.dados.exact < 40) factors.push(`Dados em ${byId.dados.percent}%: baixa governança dificulta a migração e a conformidade LGPD.`);
 
-    // Agravantes
     if (answers.q7 === 0 || answers.q8 === 0) {
       raiseTo(2);
       factors.push('Agravante: backup inexistente ou restauração nunca testada — risco elevado ao menos para "Alto".');
@@ -1155,15 +1525,14 @@
    * RECOMENDAÇÃO DO MODELO DE NUVEM (SaaS, PaaS, IaaS ou Híbrida)
    *   Sistema de pontuação por regras; vence o modelo com mais pontos.
    *   Empate → vence o de menor complexidade operacional (SaaS > PaaS > IaaS > Híbrida).
-   *   Regras:
-   *    R1 Porte  → pontos definidos em SIZES[].modelPoints
-   *    R2 Setor  → pontos definidos em SECTORS[].modelPoints
-   *    R3 Legados/virtualização (Q2): 0–1 → IaaS +2 e Híbrida +1 (rehost);  3–4 → PaaS +2 (modernização)
-   *    R4 Hardware obsoleto (Q1 ≤ 1): SaaS +1 e IaaS +1 (urgência em sair do hardware)
-   *    R5 Rede fraca (pilar < 40%): Híbrida +2 (manter cargas críticas locais até reforçar o link)
-   *    R6 Setor regulado + LGPD baixa (Q6 ≤ 1): Híbrida +1 (dados sensíveis sob controle local)
-   *    R7 Score geral ≥ 70%: PaaS +1 (maturidade para modernizar)
-   *    R8 Score geral < 40% em Micro/Pequena: SaaS +2 (reduzir a carga operacional de TI)
+   *    R1 Porte  → SIZES[].modelPoints
+   *    R2 Setor  → SECTORS[].modelPoints
+   *    R3 Legados (Q2): 0–1 → IaaS +2 e Híbrida +1 (rehost);  3–4 → PaaS +2 (modernização)
+   *    R4 Hardware obsoleto (Q1 ≤ 1): SaaS +1 e IaaS +1
+   *    R5 Rede fraca (pilar < 40%): Híbrida +2
+   *    R6 Setor regulado + LGPD baixa (Q6 ≤ 1): Híbrida +1
+   *    R7 Score geral ≥ 70%: PaaS +1
+   *    R8 Score geral < 40% em Micro/Pequena: SaaS +2
    */
   function recommendCloudModel(profile, answers, pillarScores, overallScore) {
     const points = { SaaS: 0, PaaS: 0, IaaS: 0, Hibrida: 0 };
@@ -1174,36 +1543,28 @@
     const sector = getSector(profile.sector);
     const rede = pillarScores.find((p) => p.id === 'rede');
 
-    // R1 – Porte
-    Object.entries(size.modelPoints).forEach(([m, v]) => add(m, v, size.reason));
-    // R2 – Setor
-    Object.entries(sector.modelPoints).forEach(([m, v]) => add(m, v, sector.reason));
-    // R3 – Legados e virtualização
-    if (answers.q2 <= 1) {
+    Object.entries(size.modelPoints).forEach(([m, v]) => add(m, v, size.reason));       // R1
+    Object.entries(sector.modelPoints).forEach(([m, v]) => add(m, v, sector.reason));   // R2
+    if (answers.q2 <= 1) {                                                               // R3
       add('IaaS', 2, 'Há forte dependência de sistemas legados e pouca virtualização: o rehost (lift-and-shift) em IaaS reduz o risco de alterar sistemas críticos.');
       add('Hibrida', 1, 'Sistemas legados que não podem ser movidos de imediato podem permanecer on-premises temporariamente.');
     } else if (answers.q2 >= 3) {
       add('PaaS', 2, 'O ambiente já é virtualizado/padronizado e com poucos legados, o que viabiliza modernizar para serviços gerenciados (PaaS).');
     }
-    // R4 – Hardware obsoleto
-    if (answers.q1 <= 1) {
-      add('SaaS', 1, 'O hardware está próximo do fim de vida: migrar evita um novo ciclo de investimento em servidores.');
-      add('IaaS', 1, 'O hardware está próximo do fim de vida: migrar evita um novo ciclo de investimento em servidores.');
+    if (answers.q1 <= 1) {                                                               // R4
+      const r = 'O hardware está próximo do fim de vida: migrar evita um novo ciclo de investimento em servidores.';
+      add('SaaS', 1, r); add('IaaS', 1, r);
     }
-    // R5 – Rede fraca
-    if (rede.exact < 40) {
+    if (rede.exact < 40) {                                                               // R5
       add('Hibrida', 2, 'A conectividade atual é frágil: manter cargas críticas locais até reforçar link e redundância reduz o risco de parada.');
     }
-    // R6 – Setor regulado com LGPD baixa
-    if (sector.regulated && answers.q6 <= 1) {
+    if (sector.regulated && answers.q6 <= 1) {                                           // R6
       add('Hibrida', 1, 'Setor regulado com baixa maturidade em LGPD: dados sensíveis devem permanecer sob controle direto até a governança evoluir.');
     }
-    // R7 – Maturidade alta
-    if (overallScore >= 70) {
+    if (overallScore >= 70) {                                                            // R7
       add('PaaS', 1, 'A alta maturidade geral permite capturar mais valor com modernização e serviços gerenciados.');
     }
-    // R8 – Baixa maturidade em empresa pequena
-    if (overallScore < 40 && (profile.size === 'micro' || profile.size === 'pequena')) {
+    if (overallScore < 40 && (profile.size === 'micro' || profile.size === 'pequena')) { // R8
       add('SaaS', 2, 'Com baixa maturidade de infraestrutura e equipe enxuta, SaaS transfere a operação para o fornecedor.');
     }
 
@@ -1211,28 +1572,11 @@
       (points[b] - points[a]) || (MODEL_TIEBREAK_ORDER.indexOf(a) - MODEL_TIEBREAK_ORDER.indexOf(b)));
     const winner = ranking[0];
     const runnerUp = points[ranking[1]] > 0 ? ranking[1] : null;
-
     return { model: CLOUD_MODELS[winner], points, ranking, reasons: reasons[winner], runnerUp: runnerUp ? CLOUD_MODELS[runnerUp] : null };
   }
 
-  /** Executa todo o diagnóstico e retorna um objeto consolidado. */
-  function runDiagnosis(profile, answers) {
-    const pillarScores = calculatePillarScores(answers);
-    const overallScore = calculateOverallScore(pillarScores);
-    const classification = classifyScore(overallScore);
-    const risk = calculateOperationalRisk(pillarScores, answers, profile);
-    const cloud = recommendCloudModel(profile, answers, pillarScores, overallScore);
-    const roadmap = buildRoadmap(profile, pillarScores, risk, cloud);
-    const now = new Date();
-    return {
-      profile, answers, pillarScores, overallScore, classification, risk, cloud, roadmap,
-      sector: getSector(profile.sector), size: getSize(profile.size),
-      date: now, dateText: formatDate(now), reportId: generateReportId(now)
-    };
-  }
-
   /* =====================================================================
-   * 13. ROTEIRO SEGURO DE MIGRAÇÃO
+   * 14. ROTEIRO SEGURO DE MIGRAÇÃO
    *   Prazo de cada fase (semanas) = baseWeeks × fator do porte × fator do risco × fator do modelo
    *   (arredondado, mínimo de 1 semana). A Otimização é contínua após o período estimado.
    * ===================================================================== */
@@ -1276,18 +1620,61 @@
     return { phases, totalWeeks, totalMonths: Math.max(1, Math.round(totalWeeks / 4.345)), factor };
   }
 
+  /** Executa todo o diagnóstico e retorna um objeto consolidado. */
+  function runDiagnosis(profile, answers) {
+    const pillarScores = calculatePillarScores(answers);
+    const overallScore = calculateOverallScore(pillarScores);
+    const classification = classifyScore(overallScore);
+    const risk = calculateOperationalRisk(pillarScores, answers, profile);
+    const cloud = recommendCloudModel(profile, answers, pillarScores, overallScore);
+    const roadmap = buildRoadmap(profile, pillarScores, risk, cloud);
+    const now = new Date();
+    return {
+      profile, answers, pillarScores, overallScore, classification, risk, cloud, roadmap,
+      sector: getSector(profile.sector), size: getSize(profile.size),
+      date: now, dateText: formatDate(now), reportId: generateReportId(now)
+    };
+  }
+
   /* =====================================================================
-   * 14. RENDERIZAÇÃO DO PAINEL DE RESULTADOS
+   * 15. GERADOR DO PLANO DE BOAS PRÁTICAS
+   *   Seleciona as recomendações da faixa da nota de cada pilar e acrescenta
+   *   recomendações contextuais (modelo, setor regulado, risco), limitando a 5.
+   * ===================================================================== */
+  function buildRecommendations(d) {
+    return d.pillarScores.map((p) => {
+      const items = [...RECOMMENDATIONS[p.id][p.tier]];
+      const extra = [];
+      if (p.id === 'servidores' && d.cloud.model.key === 'SaaS') {
+        extra.push({ tag: 'ERP/CRM', title: 'ERP e CRM em SaaS integrados', text: 'Ao adotar ERP e CRM em SaaS, priorize fornecedores com APIs abertas e conectores nativos para manter cadastros, pedidos e faturamento sincronizados.' });
+      } else if (p.id === 'servidores' && d.cloud.model.key === 'Hibrida') {
+        extra.push({ tag: 'Migração', title: 'Gestão unificada do ambiente híbrido', text: 'Padronize monitoramento, políticas e identidade entre on-premises e nuvem (Azure Arc, Anthos ou AWS Systems Manager) para evitar silos operacionais.' });
+      }
+      if (p.id === 'dados' && d.sector.regulated) {
+        extra.push({ tag: 'LGPD', title: 'Requisitos regulatórios do setor', text: `No setor ${d.sector.label}, documente localização, retenção e trilhas de auditoria dos dados conforme a LGPD e as normas setoriais aplicáveis.` });
+      }
+      if (p.id === 'backup' && (d.risk.level.key === 'alto' || d.risk.level.key === 'critico') && p.tier !== 'baixa') {
+        extra.push({ tag: 'Backup 3-2-1', title: 'Backup verificado antes de cada cutover', text: 'Dado o risco elevado da migração, condicione cada onda a um backup completo, verificado e com restauração testada.' });
+      }
+      if (p.id === 'rede' && d.cloud.model.key !== 'SaaS' && p.tier === 'baixa') {
+        extra.push({ tag: 'Alta Disponibilidade', title: 'Dimensionamento da carga inicial', text: 'Planeje a carga inicial de dados fora do horário comercial ou via transferência offline (ex.: Azure Data Box, AWS Snowball) para não saturar o link.' });
+      }
+      return { pillar: p, items: items.concat(extra).slice(0, 5) };
+    });
+  }
+
+  /* =====================================================================
+   * 16. RENDERIZAÇÃO DO PAINEL DE RESULTADOS
    * ===================================================================== */
   function renderDashboard(d) {
-    const companyEsc = escapeHtml(d.profile.companyName);
     $('#resultsTitle').textContent = d.profile.companyName;
-    $('#resultsMeta').innerHTML = `${escapeHtml(d.sector.label)} · ${escapeHtml(d.size.short)} · Emitido em ${escapeHtml(d.dateText)} · Laudo nº ${escapeHtml(d.reportId)}`;
+    $('#resultsMeta').textContent = `${d.sector.label} · ${d.size.short} · Emitido em ${d.dateText} · Laudo nº ${d.reportId}`;
     $('#printCompany').textContent = d.profile.companyName;
     $('#printDate').textContent = d.dateText;
     $('#printReportId').textContent = d.reportId;
 
-    renderExecutiveSummary(d, companyEsc);
+    renderDemoBanner();
+    renderExecutiveSummary(d);
     renderScoreCard(d);
     renderRiskCard(d);
     renderModelCard(d);
@@ -1296,53 +1683,72 @@
     renderRecommendations(d);
     renderRoadmap(d);
     renderMethodology();
-    renderRadarChart(d);
     refreshIcons();
+    renderRadarChart(d);
+    buildRadarPrintImage(d);
+    startResultAnimations();
   }
 
-  /** Sumário executivo gerado automaticamente. */
-  function renderExecutiveSummary(d, companyEsc) {
+  /** Faixa com o cenário da demo aleatória (quando aplicável). */
+  function renderDemoBanner() {
+    const banner = $('#demoBanner');
+    if (!currentDemo) { banner.classList.add('hidden'); banner.innerHTML = ''; return; }
+    banner.innerHTML = `
+      <div class="card flex flex-col gap-3 border-accent/30 bg-accent/[.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-start gap-3">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent"><i data-lucide="sparkles" class="h-4 w-4"></i></span>
+          <div>
+            <p class="text-sm font-semibold">Caso exemplo fictício · cenário “${escapeHtml(currentDemo.archetype.name)}”</p>
+            <p class="mt-0.5 text-sm text-muted">${escapeHtml(currentDemo.archetype.story)}</p>
+          </div>
+        </div>
+        <button type="button" class="no-print btn btn-secondary js-demo shrink-0"><i data-lucide="shuffle" class="h-4 w-4 text-accent"></i> Gerar outro caso</button>
+      </div>`;
+    banner.classList.remove('hidden');
+  }
+
+  function renderExecutiveSummary(d) {
     const sorted = [...d.pillarScores].sort((a, b) => b.exact - a.exact);
     const strongest = sorted[0];
     const weakest = sorted[sorted.length - 1];
+    const months = `${d.roadmap.totalMonths} ${d.roadmap.totalMonths === 1 ? 'mês' : 'meses'}`;
     $('#executiveSummary').innerHTML =
-      `A <strong>${companyEsc}</strong> obteve <strong>Score Geral de Prontidão para Nuvem de ${d.overallScore}%</strong>, ` +
-      `classificado como <strong style="color:${d.classification.color}">${d.classification.label}</strong>, com ` +
-      `<strong style="color:${d.risk.level.color}">risco operacional ${d.risk.level.label.toLowerCase()}</strong> para a migração. ` +
-      `O pilar mais maduro é <strong>${escapeHtml(strongest.name)}</strong> (${strongest.percent}%) e o ponto de maior atenção é ` +
-      `<strong>${escapeHtml(weakest.name)}</strong> (${weakest.percent}%). ` +
-      `Recomenda-se o modelo <strong>${escapeHtml(d.cloud.model.name)}</strong>, com um roteiro estimado de ` +
-      `<strong>${d.roadmap.totalWeeks} semanas (≈ ${d.roadmap.totalMonths} ${d.roadmap.totalMonths === 1 ? 'mês' : 'meses'})</strong> ` +
-      `em ${d.roadmap.phases.length} fases, seguido de otimização contínua.`;
+      `<strong>${escapeHtml(d.profile.companyName)}</strong> obteve <strong>score de prontidão de ${d.overallScore}%</strong>, ` +
+      `classificado como <strong class="t-text" style="${tone(d.classification.tone)}">${d.classification.label}</strong>, com ` +
+      `<strong class="t-text" style="${tone(d.risk.level.tone)}">risco operacional ${d.risk.level.label.toLowerCase()}</strong> para a migração. ` +
+      `O pilar mais maduro é <strong>${escapeHtml(strongest.name)}</strong> (${strongest.percent}%) e o de maior atenção é ` +
+      `<strong>${escapeHtml(weakest.name)}</strong> (${weakest.percent}%). Recomenda-se o modelo <strong>${escapeHtml(d.cloud.model.name)}</strong>, ` +
+      `com roteiro estimado de <strong>${d.roadmap.totalWeeks} semanas (≈ ${months})</strong> em ${d.roadmap.phases.length} fases, seguido de otimização contínua.`;
   }
 
-  /** Card do Score Geral com anel e selo de classificação. */
+  /** Card do Score Geral: anel animado, contador e selo de classificação. */
   function renderScoreCard(d) {
     const c = d.classification;
-    const ringStyle = `background: conic-gradient(${c.ring} ${d.overallScore * 3.6}deg, #e2e8f0 0deg);`;
+    const circumference = 2 * Math.PI * 52;
+    const offset = circumference * (1 - d.overallScore / 100);
     $('#scoreCard').innerHTML = `
-      <h3 id="scoreCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
-        <i data-lucide="gauge" class="h-5 w-5 text-brand-600"></i> Score Geral de Prontidão
-      </h3>
-      <div class="mt-4 flex flex-col items-center text-center">
-        <div class="score-ring" style="${ringStyle}" role="img" aria-label="Score geral de ${d.overallScore} por cento">
-          <div class="score-ring-inner">
-            <div>
-              <span class="block text-5xl font-extrabold tracking-tight text-slate-900">${d.overallScore}<span class="text-2xl">%</span></span>
-            </div>
+      <h3 id="scoreCardTitle" class="eyebrow flex items-center gap-2"><i data-lucide="gauge" class="h-4 w-4 text-accent"></i> Score geral de prontidão</h3>
+      <div class="mt-5 flex flex-col items-center text-center">
+        <div class="relative h-40 w-40" role="img" aria-label="Score geral de ${d.overallScore} por cento, selo ${c.label}">
+          <svg viewBox="0 0 120 120" class="h-40 w-40 -rotate-90" aria-hidden="true">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="rgb(var(--line))" stroke-width="9" />
+            <circle class="ring-progress t-stroke" style="${tone(c.tone)}" cx="60" cy="60" r="52" fill="none" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="${circumference.toFixed(2)}" stroke-dashoffset="${circumference.toFixed(2)}" data-offset="${offset.toFixed(2)}" />
+          </svg>
+          <div class="absolute inset-0 grid place-items-center" aria-hidden="true">
+            <span class="tabular text-5xl font-extrabold tracking-tight"><span data-count="${d.overallScore}">0</span><span class="text-2xl text-muted">%</span></span>
           </div>
         </div>
-        <span class="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-extrabold" style="color:${c.color};background:${c.bg};border:1px solid ${c.ring}">
-          <i data-lucide="${c.icon}" class="h-4 w-4"></i> Selo: ${c.label} <span class="font-semibold opacity-80">(${c.range})</span>
+        <span class="t-chip mt-5 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold" style="${tone(c.tone)}">
+          <i data-lucide="${c.icon}" class="h-4 w-4"></i> ${c.label} <span class="font-normal">${c.range}</span>
         </span>
-        <p class="mt-3 text-sm text-slate-600">${escapeHtml(c.desc)}</p>
+        <p class="mt-3 text-sm text-muted">${escapeHtml(c.desc)}</p>
       </div>
-      <p class="mt-5 text-xs font-bold uppercase tracking-wider text-slate-600">Escala de classificação</p>
-      <ul class="mt-2 space-y-1.5 text-sm">
+      <ul class="mt-5 space-y-1 border-t border-line pt-4 text-xs" aria-label="Escala de classificação">
         ${[...CLASSIFICATION_BANDS].reverse().map((b) => `
-          <li class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style="${b.label === c.label ? `background:${b.bg};color:${b.color};font-weight:800;outline:1px solid ${b.ring}` : 'color:#475569'}">
-            <span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full" style="background:${b.ring}"></span>${b.label}${b.label === c.label ? ' ← sua empresa' : ''}</span>
-            <span>${b.range}</span>
+          <li class="flex items-center justify-between rounded-lg px-2.5 py-1.5 ${b.label === c.label ? 't-soft t-text font-semibold' : 'text-muted'}" style="${tone(b.tone)}">
+            <span class="flex items-center gap-2"><span class="t-fill h-2 w-2 rounded-full" style="${tone(b.tone)}"></span>${b.label}${b.label === c.label ? ' · sua empresa' : ''}</span>
+            <span class="tabular">${b.range}</span>
           </li>`).join('')}
       </ul>`;
   }
@@ -1350,24 +1756,21 @@
   /** Card do Risco Operacional. */
   function renderRiskCard(d) {
     const r = d.risk;
-    const segments = RISK_LEVELS.map((lvl) => `
-      <span class="h-2 flex-1 rounded-full" style="background:${lvl.key === r.level.key ? lvl.color : '#e2e8f0'}" title="${lvl.label}"></span>`).join('');
+    const activeIndex = RISK_LEVELS.findIndex((l) => l.key === r.level.key);
     $('#riskCard').innerHTML = `
-      <h3 id="riskCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
-        <i data-lucide="shield-alert" class="h-5 w-5" style="color:${r.level.color}"></i> Risco Operacional da Migração
-      </h3>
-      <div class="mt-4 flex items-end justify-between gap-3">
-        <p class="text-4xl font-extrabold" style="color:${r.level.color}">${r.level.label}</p>
-        <p class="text-right text-xs text-slate-600">Índice de risco<br><span class="text-lg font-bold text-slate-800">${r.index}/100</span></p>
+      <h3 id="riskCardTitle" class="eyebrow flex items-center gap-2"><i data-lucide="shield-alert" class="h-4 w-4 t-text" style="${tone(r.level.tone)}"></i> Risco operacional da migração</h3>
+      <div class="mt-5 flex items-end justify-between gap-3">
+        <p class="t-text text-4xl font-extrabold tracking-tight" style="${tone(r.level.tone)}">${r.level.label}</p>
+        <p class="text-right text-xs text-muted">Índice de risco<br><span class="tabular text-lg font-bold text-fg"><span data-count="${r.index}">0</span>/100</span></p>
       </div>
-      <div class="mt-3 flex gap-1.5" aria-hidden="true">${segments}</div>
-      <div class="mt-1 flex justify-between text-[11px] font-medium text-slate-600" aria-hidden="true">
-        ${RISK_LEVELS.map((l) => `<span>${l.label}</span>`).join('')}
+      <div class="mt-4 grid grid-cols-4 gap-1.5" aria-hidden="true">
+        ${RISK_LEVELS.map((lvl, i) => `<span class="h-1.5 rounded-full ${i <= activeIndex ? 't-fill' : 'bg-line'}" style="${tone(r.level.tone)};${i <= activeIndex ? `opacity:${0.35 + (i / Math.max(activeIndex, 1)) * 0.65}` : ''}"></span>`).join('')}
       </div>
-      <p class="mt-3 rounded-lg p-2.5 text-sm font-medium" style="background:${r.level.bg};color:${r.level.color}">${escapeHtml(r.level.desc)}</p>
-      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Fatores determinantes</p>
-      <ul class="mt-2 space-y-1.5 text-sm text-slate-700">
-        ${r.factors.map((f) => `<li class="flex gap-2"><span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style="background:${r.level.color}"></span><span>${escapeHtml(f)}</span></li>`).join('')}
+      <div class="mt-1.5 grid grid-cols-4 text-[11px] text-muted" aria-hidden="true">${RISK_LEVELS.map((l) => `<span class="${l.key === r.level.key ? 'font-semibold text-fg' : ''}">${l.label}</span>`).join('')}</div>
+      <p class="t-soft t-text mt-4 rounded-lg p-3 text-sm" style="${tone(r.level.tone)}">${escapeHtml(r.level.desc)}</p>
+      <p class="eyebrow mt-5">Fatores determinantes</p>
+      <ul class="mt-2 space-y-2 text-sm text-fg/85">
+        ${r.factors.map((f) => `<li class="flex gap-2.5"><span class="t-fill mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style="${tone(r.level.tone)}"></span><span>${escapeHtml(f)}</span></li>`).join('')}
       </ul>`;
   }
 
@@ -1375,57 +1778,51 @@
   function renderModelCard(d) {
     const { model, points, ranking, reasons, runnerUp } = d.cloud;
     const maxPoints = Math.max(...Object.values(points), 1);
-    const bars = ranking.map((key) => {
-      const m = CLOUD_MODELS[key];
-      const pct = Math.round((points[key] / maxPoints) * 100);
-      return `
-        <div>
-          <div class="flex justify-between text-xs font-semibold text-slate-700"><span>${escapeHtml(m.name)}</span><span>${points[key]} ${points[key] === 1 ? 'pt' : 'pts'}</span></div>
-          <div class="mt-1 h-1.5 rounded-full bg-slate-200"><div class="h-1.5 rounded-full" style="width:${pct}%;background:${m.color}"></div></div>
-        </div>`;
-    }).join('');
-
     $('#modelCard').innerHTML = `
-      <h3 id="modelCardTitle" class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
-        <i data-lucide="cloud" class="h-5 w-5 text-brand-600"></i> Modelo de Nuvem Recomendado
-      </h3>
-      <div class="mt-4 flex items-center gap-3">
-        <span class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white" style="background:${model.color}">
-          <i data-lucide="${model.icon}" class="h-7 w-7"></i>
-        </span>
+      <h3 id="modelCardTitle" class="eyebrow flex items-center gap-2"><i data-lucide="cloud" class="h-4 w-4 text-accent"></i> Modelo de nuvem recomendado</h3>
+      <div class="mt-5 flex items-center gap-3">
+        <span class="t-chip grid h-14 w-14 shrink-0 place-items-center rounded-2xl" style="${tone(model.tone)}"><i data-lucide="${model.icon}" class="h-7 w-7"></i></span>
         <div>
-          <p class="text-3xl font-extrabold" style="color:${model.color}">${escapeHtml(model.name)}</p>
-          <p class="text-sm font-semibold text-slate-600">${escapeHtml(model.fullName)}</p>
+          <p class="t-text text-3xl font-extrabold tracking-tight" style="${tone(model.tone)}">${escapeHtml(model.name)}</p>
+          <p class="text-sm text-muted">${escapeHtml(model.fullName)}</p>
         </div>
       </div>
-      <p class="mt-3 text-sm text-slate-700">${escapeHtml(model.description)}</p>
-      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Justificativa</p>
-      <ul class="mt-2 space-y-1.5 text-sm text-slate-700">
-        ${reasons.slice(0, 4).map((r) => `<li class="flex gap-2"><i data-lucide="circle-check" class="mt-0.5 h-4 w-4 shrink-0" style="color:${model.color}"></i><span>${escapeHtml(r)}</span></li>`).join('')}
+      <p class="mt-4 text-sm text-fg/85">${escapeHtml(model.description)}</p>
+      <p class="eyebrow mt-5">Justificativa</p>
+      <ul class="mt-2 space-y-2 text-sm text-fg/85">
+        ${reasons.slice(0, 4).map((r) => `<li class="flex gap-2.5"><i data-lucide="check" class="t-text mt-0.5 h-4 w-4 shrink-0" style="${tone(model.tone)}"></i><span>${escapeHtml(r)}</span></li>`).join('')}
       </ul>
-      ${runnerUp ? `<p class="mt-3 text-sm text-slate-600"><strong>Alternativa complementar:</strong> ${escapeHtml(runnerUp.name)} (${escapeHtml(runnerUp.fullName)}) para cargas específicas.</p>` : ''}
-      <p class="mt-4 text-xs font-bold uppercase tracking-wider text-slate-600">Aderência por modelo</p>
-      <div class="mt-2 space-y-2">${bars}</div>`;
+      ${runnerUp ? `<p class="mt-3 text-sm text-muted"><span class="text-fg">Alternativa complementar:</span> ${escapeHtml(runnerUp.name)} (${escapeHtml(runnerUp.fullName)}) para cargas específicas.</p>` : ''}
+      <p class="eyebrow mt-5">Aderência por modelo</p>
+      <div class="mt-2 space-y-2.5">
+        ${ranking.map((key) => {
+          const m = CLOUD_MODELS[key];
+          return `<div>
+            <div class="flex justify-between text-xs"><span class="${key === model.key ? 'font-semibold text-fg' : 'text-muted'}">${escapeHtml(m.name)}</span><span class="tabular text-muted">${points[key]} ${points[key] === 1 ? 'pt' : 'pts'}</span></div>
+            <div class="mt-1 h-1.5 rounded-full bg-line/70"><div class="bar-fill t-fill h-1.5 rounded-full" style="${tone(m.tone)}--w:${Math.round((points[key] / maxPoints) * 100)}%"></div></div>
+          </div>`;
+        }).join('')}
+      </div>`;
   }
 
-  /** Cards individuais dos 4 pilares com nota e barra de progresso. */
+  /** Cards dos 4 pilares com nota e barra de progresso animada. */
   function renderPillarCards(d) {
     const tierLabel = { baixa: 'Nota baixa', media: 'Nota média', alta: 'Nota alta' };
-    $('#pillarCards').innerHTML = d.pillarScores.map((p) => {
-      const color = percentColor(p.exact);
+    $('#pillarCards').innerHTML = d.pillarScores.map((p, i) => {
+      const t = percentTone(p.exact);
       return `
-        <article class="pillar-card card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article class="pillar-card card reveal p-5" style="transition-delay:${i * 70}ms">
           <div class="flex items-center justify-between gap-2">
-            <span class="grid h-10 w-10 place-items-center rounded-xl text-white" style="background:${p.color}"><i data-lucide="${p.icon}" class="h-5 w-5"></i></span>
-            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Peso ${Math.round(p.weight * 100)}%</span>
+            <span class="t-chip grid h-10 w-10 place-items-center rounded-xl" style="${tone(p.tone)}"><i data-lucide="${p.icon}" class="h-5 w-5"></i></span>
+            <span class="chip">Peso ${Math.round(p.weight * 100)}%</span>
           </div>
-          <h4 class="mt-3 font-bold text-slate-900">${escapeHtml(p.name)}</h4>
-          <div class="mt-2 flex items-baseline justify-between">
-            <span class="text-3xl font-extrabold text-slate-900">${p.percent}%</span>
-            <span class="text-xs font-semibold" style="color:${color === '#d97706' ? '#92400e' : color}">${tierLabel[p.tier]} · ${p.obtained}/${p.max} pts</span>
+          <h4 class="mt-4 font-semibold">${escapeHtml(p.name)}</h4>
+          <div class="mt-1 flex items-baseline justify-between">
+            <span class="tabular text-3xl font-extrabold tracking-tight"><span data-count="${p.percent}">0</span>%</span>
+            <span class="t-text text-xs font-medium" style="${tone(t)}">${tierLabel[p.tier]} · ${p.obtained}/${p.max} pts</span>
           </div>
-          <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}" aria-label="Nota do pilar ${escapeHtml(p.name)}">
-            <div class="h-full rounded-full" style="width:${p.percent}%;background:${color}"></div>
+          <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-line/70" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}" aria-label="Nota do pilar ${escapeHtml(p.name)}">
+            <div class="bar-fill t-fill h-full rounded-full" style="${tone(t)}--w:${p.percent}%"></div>
           </div>
         </article>`;
     }).join('');
@@ -1439,297 +1836,354 @@
       .sort((a, b) => a.option.score - b.option.score || b.pillar.riskWeight - a.pillar.riskWeight);
 
     $('#alertsList').innerHTML = alerts.length === 0
-      ? `<li class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-           <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-700"></i>
-           <span><strong>Nenhuma vulnerabilidade crítica.</strong> Todas as respostas obtiveram pontuação 2 ou superior.</span>
+      ? `<li class="t-soft t-border flex items-start gap-3 rounded-xl border p-3.5 text-sm" style="${tone('emerald')}">
+           <i data-lucide="circle-check" class="t-text mt-0.5 h-5 w-5 shrink-0" style="${tone('emerald')}"></i>
+           <span><strong class="t-text" style="${tone('emerald')}">Nenhuma vulnerabilidade crítica.</strong> Todas as respostas obtiveram pontuação 2 ou superior.</span>
          </li>`
       : alerts.map(({ q, option, pillar }) => `
-          <li class="avoid-break rounded-xl border p-3 text-sm" style="border-color:${option.score === 0 ? '#fca5a5' : '#fdba74'};background:${option.score === 0 ? '#fef2f2' : '#fff7ed'}">
+          <li class="avoid-break t-border rounded-xl border bg-surface-2/40 p-3.5 text-sm" style="${tone(scoreTone(option.score))}">
             <div class="flex items-center justify-between gap-2">
-              <span class="font-bold text-slate-900">${escapeHtml(q.short)}</span>
-              <span class="rounded-full px-2 py-0.5 text-xs font-bold text-white" style="background:${scoreColor(option.score)}">${option.score}/4</span>
+              <span class="font-semibold">${escapeHtml(q.short)}</span>
+              <span class="t-chip tabular rounded-full px-2 py-0.5 text-xs font-bold" style="${tone(scoreTone(option.score))}">${option.score}/4</span>
             </div>
-            <p class="mt-0.5 text-xs font-semibold text-slate-600">${escapeHtml(pillar.name)}</p>
-            <p class="mt-1 text-slate-700">${escapeHtml(option.label)} — ${escapeHtml(option.desc)}</p>
+            <p class="mt-0.5 text-xs text-muted">${escapeHtml(pillar.name)}</p>
+            <p class="mt-1.5 text-fg/85">${escapeHtml(option.label)} — ${escapeHtml(option.desc)}</p>
           </li>`).join('');
-  }
-
-  /* =====================================================================
-   * 15. GERADOR DO PLANO DE BOAS PRÁTICAS
-   *   Para cada pilar, seleciona as recomendações da faixa da nota
-   *   (baixa/média/alta) e acrescenta 1 recomendação contextual quando
-   *   aplicável (modelo de nuvem, setor regulado ou risco elevado),
-   *   respeitando o limite de 3 a 5 itens.
-   * ===================================================================== */
-  function buildRecommendations(d) {
-    return d.pillarScores.map((p) => {
-      const items = [...RECOMMENDATIONS[p.id][p.tier]];
-      const extra = [];
-
-      if (p.id === 'servidores' && d.cloud.model.key === 'SaaS') {
-        extra.push({ tag: 'ERP/CRM', title: 'ERP e CRM em SaaS integrados', text: 'Ao adotar ERP e CRM em SaaS, priorize fornecedores com APIs abertas e conectores nativos para manter cadastros, pedidos e faturamento sincronizados.' });
-      } else if (p.id === 'servidores' && d.cloud.model.key === 'Hibrida') {
-        extra.push({ tag: 'Migração', title: 'Gestão unificada do ambiente híbrido', text: 'Padronize monitoramento, políticas e identidade entre on-premises e nuvem (Azure Arc, Anthos ou AWS Systems Manager) para evitar silos operacionais.' });
-      }
-      if (p.id === 'dados' && d.sector.regulated) {
-        extra.push({ tag: 'LGPD', title: 'Requisitos regulatórios do setor', text: `No setor ${d.sector.label}, documente localização, retenção e trilhas de auditoria dos dados conforme a LGPD e as normas setoriais aplicáveis.` });
-      }
-      if (p.id === 'backup' && (d.risk.level.key === 'alto' || d.risk.level.key === 'critico') && p.tier !== 'baixa') {
-        extra.push({ tag: 'Backup 3-2-1', title: 'Backup verificado antes de cada cutover', text: 'Dado o risco elevado da migração, condicione cada onda a um backup completo, verificado e com restauração testada.' });
-      }
-      if (p.id === 'rede' && d.cloud.model.key !== 'SaaS' && p.tier === 'baixa') {
-        extra.push({ tag: 'Alta Disponibilidade', title: 'Dimensionamento da migração inicial', text: 'Planeje a carga inicial de dados fora do horário comercial ou via transferência offline (ex.: Azure Data Box, AWS Snowball) para não saturar o link.' });
-      }
-
-      const finalItems = items.concat(extra).slice(0, 5);
-      return { pillar: p, items: finalItems };
-    });
   }
 
   function renderRecommendations(d) {
     const tierInfo = {
-      baixa: { label: 'Nota baixa (0–39%)', color: '#b91c1c', bg: '#fee2e2' },
-      media: { label: 'Nota média (40–69%)', color: '#92400e', bg: '#fef3c7' },
-      alta: { label: 'Nota alta (70–100%)', color: '#047857', bg: '#d1fae5' }
+      baixa: { label: 'Nota baixa (0–39%)', tone: 'red' },
+      media: { label: 'Nota média (40–69%)', tone: 'amber' },
+      alta: { label: 'Nota alta (70–100%)', tone: 'emerald' }
     };
-    $('#recommendations').innerHTML = buildRecommendations(d).map(({ pillar, items }) => {
+    $('#recommendations').innerHTML = buildRecommendations(d).map(({ pillar, items }, i) => {
       const t = tierInfo[pillar.tier];
       return `
-        <article class="rec-block card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <header class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-            <h4 class="flex items-center gap-2 font-bold text-slate-900">
-              <span class="grid h-8 w-8 place-items-center rounded-lg text-white" style="background:${pillar.color}"><i data-lucide="${pillar.icon}" class="h-4 w-4"></i></span>
-              ${escapeHtml(pillar.name)} <span class="font-semibold text-slate-600">· ${pillar.percent}%</span>
+        <article class="rec-block card reveal p-5" style="transition-delay:${(i % 2) * 80}ms">
+          <header class="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+            <h4 class="flex items-center gap-2.5 font-semibold">
+              <span class="t-chip grid h-8 w-8 place-items-center rounded-lg" style="${tone(pillar.tone)}"><i data-lucide="${pillar.icon}" class="h-4 w-4"></i></span>
+              ${escapeHtml(pillar.name)} <span class="tabular font-normal text-muted">· ${pillar.percent}%</span>
             </h4>
-            <span class="rounded-full px-2.5 py-1 text-xs font-bold" style="color:${t.color};background:${t.bg}">${t.label}</span>
+            <span class="t-chip rounded-full px-2.5 py-1 text-xs font-semibold" style="${tone(t.tone)}">${t.label}</span>
           </header>
-          <ol class="mt-3 space-y-3">
-            ${items.map((item, i) => {
-              const tag = TAG_STYLES[item.tag] || { color: '#334155', bg: '#f1f5f9' };
-              return `
-                <li class="rec-item flex gap-3">
-                  <span class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-900 text-xs font-bold text-white">${i + 1}</span>
-                  <div>
-                    <p class="font-semibold text-slate-900">${escapeHtml(item.title)}
-                      <span class="ml-1 inline-block rounded-full px-2 py-0.5 align-middle text-[11px] font-bold" style="color:${tag.color};background:${tag.bg}">${escapeHtml(item.tag)}</span>
-                    </p>
-                    <p class="mt-0.5 text-sm leading-relaxed text-slate-700">${escapeHtml(item.text)}</p>
-                  </div>
-                </li>`;
-            }).join('')}
+          <ol class="mt-4 space-y-4">
+            ${items.map((item, n) => `
+              <li class="rec-item flex gap-3">
+                <span class="tabular mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-xs font-semibold text-muted">${n + 1}</span>
+                <div>
+                  <p class="font-medium">${escapeHtml(item.title)}
+                    <span class="t-chip ml-1 inline-block rounded-full px-2 py-0.5 align-middle text-[11px] font-semibold" style="${tone(TAG_TONES[item.tag] || 'slate')}">${escapeHtml(item.tag)}</span>
+                  </p>
+                  <p class="mt-1 text-sm leading-relaxed text-muted">${escapeHtml(item.text)}</p>
+                </div>
+              </li>`).join('')}
           </ol>
         </article>`;
     }).join('');
   }
 
-  /** Linha do tempo do Roteiro Seguro de Migração. */
+  /** Linha do tempo do Roteiro Seguro de Migração (barra proporcional + fases). */
   function renderRoadmap(d) {
     const rm = d.roadmap;
+    const months = `${rm.totalMonths} ${rm.totalMonths === 1 ? 'mês' : 'meses'}`;
     $('#roadmapIntro').innerHTML =
-      `Roteiro ajustado ao risco <strong style="color:${d.risk.level.color}">${d.risk.level.label}</strong>, ao modelo <strong>${escapeHtml(d.cloud.model.name)}</strong> ` +
-      `e ao porte <strong>${escapeHtml(d.size.short)}</strong>. Duração estimada: <strong>${rm.totalWeeks} semanas (≈ ${rm.totalMonths} ${rm.totalMonths === 1 ? 'mês' : 'meses'})</strong>` +
-      `${rm.phases.some((p) => p.id === 'estabilizacao') ? ', incluindo uma fase prévia de <strong>Estabilização</strong> exigida pelo nível de risco' : ''}.`;
+      `Ajustado ao risco <strong class="t-text" style="${tone(d.risk.level.tone)}">${d.risk.level.label}</strong>, ao modelo <strong class="text-fg">${escapeHtml(d.cloud.model.name)}</strong> ` +
+      `e ao porte <strong class="text-fg">${escapeHtml(d.size.short)}</strong>. Duração estimada: <strong class="text-fg">${rm.totalWeeks} semanas (≈ ${months})</strong>` +
+      `${rm.phases.some((p) => p.id === 'estabilizacao') ? ', incluindo uma fase prévia de <strong class="text-fg">Estabilização</strong> exigida pelo nível de risco' : ''}.`;
+
+    const phaseTone = (phase) => (phase.id === 'estabilizacao' ? d.risk.level.tone : (phase.id === 'otimizacao' ? 'emerald' : 'sky'));
+
+    $('#roadmapGantt').innerHTML = `
+      <div class="flex items-center justify-between text-xs text-muted"><span>Semana 1</span><span>Semana ${rm.totalWeeks}</span></div>
+      <div class="mt-2 flex h-8 gap-1 overflow-hidden rounded-lg" role="img" aria-label="Duração proporcional das fases: ${rm.phases.map((p) => `${p.name}, ${p.weeks} semanas`).join('; ')}">
+        ${rm.phases.map((p) => `<div class="t-soft t-border flex min-w-0 items-center justify-center rounded-md border px-1 text-[11px] font-semibold" style="${tone(phaseTone(p))}flex:${p.weeks}" title="${escapeHtml(p.name)} · ${p.weeks} sem.">
+          <span class="t-text truncate" style="${tone(phaseTone(p))}">${p.weeks}s</span></div>`).join('')}
+      </div>
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        ${rm.phases.map((p, i) => `<span class="flex items-center gap-1.5"><span class="t-fill h-2 w-2 rounded-full" style="${tone(phaseTone(p))}"></span>${i + 1}. ${escapeHtml(p.name)}</span>`).join('')}
+      </div>`;
 
     $('#roadmap').innerHTML = rm.phases.map((phase, i) => `
-      <li class="phase relative pl-14">
-        <span class="absolute left-0 top-0 grid h-11 w-11 place-items-center rounded-full border-4 border-slate-50 text-white shadow" style="background:${phase.id === 'estabilizacao' ? d.risk.level.color : '#0369a1'}">
+      <li class="phase reveal relative pl-14" style="transition-delay:${i * 60}ms">
+        <span class="t-chip absolute left-0 top-0 grid h-10 w-10 place-items-center rounded-xl bg-surface" style="${tone(phaseTone(phase))}">
           <i data-lucide="${phase.icon}" class="h-5 w-5"></i>
         </span>
-        <div class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="card p-5">
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p class="text-xs font-bold uppercase tracking-wider text-slate-600">Fase ${i + 1}</p>
-              <h4 class="text-lg font-bold text-slate-900">${escapeHtml(phase.name)}</h4>
+              <p class="eyebrow">Fase ${i + 1}</p>
+              <h4 class="mt-0.5 text-lg font-semibold">${escapeHtml(phase.name)}</h4>
             </div>
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-900 ring-1 ring-sky-200">
-              <i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
-              Semanas ${phase.startWeek}–${phase.endWeek} · ${phase.weeks} ${phase.weeks === 1 ? 'semana' : 'semanas'}${phase.continuous ? ' + contínuo' : ''}
-            </span>
+            <span class="chip tabular"><i data-lucide="calendar-range" class="h-3.5 w-3.5"></i>
+              Semanas ${phase.startWeek}–${phase.endWeek} · ${phase.weeks} ${phase.weeks === 1 ? 'semana' : 'semanas'}${phase.continuous ? ' + contínuo' : ''}</span>
           </div>
-          <p class="mt-2 text-sm text-slate-700"><strong>Objetivo:</strong> ${escapeHtml(phase.objective)}</p>
-          <ul class="mt-3 space-y-1.5 text-sm text-slate-700">
-            ${phase.actions.map((a) => `<li class="flex gap-2"><i data-lucide="circle-check" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"></i><span>${escapeHtml(a)}</span></li>`).join('')}
+          <p class="mt-2 text-sm text-muted"><span class="text-fg">Objetivo:</span> ${escapeHtml(phase.objective)}</p>
+          <ul class="mt-3 space-y-2 text-sm text-fg/85">
+            ${phase.actions.map((a) => `<li class="flex gap-2.5"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"></i><span>${escapeHtml(a)}</span></li>`).join('')}
           </ul>
-          <p class="mt-3 rounded-lg bg-slate-50 p-2.5 text-sm text-slate-700"><strong>Entregável:</strong> ${escapeHtml(phase.deliverable)}</p>
+          <p class="mt-4 rounded-lg border border-line bg-surface-2/50 p-3 text-sm text-muted"><span class="text-fg">Entregável:</span> ${escapeHtml(phase.deliverable)}</p>
         </div>
       </li>`).join('');
   }
 
-  /** Tabela de metodologia, gerada a partir dos pesos configurados. */
+  /** Metodologia gerada a partir dos pesos configurados. */
   function renderMethodology() {
     const rows = PILLARS.map((p) => `
-      <tr class="border-t border-slate-100">
-        <td class="py-2 pr-3 font-medium text-slate-800">${escapeHtml(p.name)}</td>
-        <td class="py-2 pr-3 text-center">${Math.round(p.weight * 100)}%</td>
-        <td class="py-2 text-center">${Math.round(p.riskWeight * 100)}%</td>
+      <tr class="border-t border-line">
+        <td class="py-2 pr-3 text-fg">${escapeHtml(p.name)}</td>
+        <td class="tabular py-2 pr-3 text-center">${Math.round(p.weight * 100)}%</td>
+        <td class="tabular py-2 text-center">${Math.round(p.riskWeight * 100)}%</td>
       </tr>`).join('');
     $('#methodology').innerHTML = `
-      <div class="grid gap-6 md:grid-cols-2 print-cols-2">
-        <div>
-          <table class="w-full text-left text-sm">
-            <caption class="mb-2 text-left font-semibold text-slate-800">Pesos por pilar</caption>
-            <thead><tr class="text-xs uppercase tracking-wider text-slate-600"><th scope="col" class="pb-1">Pilar</th><th scope="col" class="pb-1 text-center">Score geral</th><th scope="col" class="pb-1 text-center">Risco</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-        <ul class="list-disc space-y-1.5 pl-5">
-          <li><strong>Nota do pilar</strong> = soma dos pontos das 2 perguntas ÷ 8 × 100.</li>
-          <li><strong>Score geral</strong> = média ponderada das notas dos pilares (pesos ao lado).</li>
-          <li><strong>Selos:</strong> Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100%.</li>
-          <li><strong>Índice de risco</strong> = 100 − média ponderada pelos pesos de risco (maior peso para Backup e Rede). Baixo ≤ 24 · Moderado 25–44 · Alto 45–64 · Crítico ≥ 65, com agravantes para ausência de backup, rede frágil e setor regulado sem maturidade LGPD.</li>
-          <li><strong>Modelo de nuvem:</strong> pontuação por regras de porte, setor, legados, hardware, rede, LGPD e maturidade.</li>
+      <div class="grid gap-8 md:grid-cols-2 print-cols-2">
+        <table class="w-full text-left text-sm">
+          <caption class="mb-2 text-left font-medium text-fg">Pesos por pilar</caption>
+          <thead><tr class="text-xs uppercase tracking-wider"><th scope="col" class="pb-2 font-medium">Pilar</th><th scope="col" class="pb-2 text-center font-medium">Score geral</th><th scope="col" class="pb-2 text-center font-medium">Risco</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <ul class="list-disc space-y-2 pl-5 marker:text-accent">
+          <li><span class="text-fg">Nota do pilar</span> = soma dos pontos das 2 perguntas ÷ 8 × 100.</li>
+          <li><span class="text-fg">Score geral</span> = média ponderada das notas dos pilares.</li>
+          <li><span class="text-fg">Selos:</span> Crítico 0–39% · Em Transição 40–59% · Estruturado 60–79% · Líder Digital 80–100%.</li>
+          <li><span class="text-fg">Índice de risco</span> = 100 − média ponderada pelos pesos de risco. Baixo ≤ 24 · Moderado 25–44 · Alto 45–64 · Crítico ≥ 65, com agravantes para ausência de backup, rede frágil e setor regulado sem maturidade LGPD.</li>
+          <li><span class="text-fg">Modelo de nuvem:</span> pontuação por regras de porte, setor, legados, hardware, rede, LGPD e maturidade.</li>
         </ul>
       </div>`;
   }
 
   /* =====================================================================
-   * 16. GRÁFICO RADAR (Chart.js)
-   *   Destrói a instância anterior antes de criar uma nova, evitando
-   *   sobreposição de gráficos entre diagnósticos.
+   * 17. ANIMAÇÕES DOS RESULTADOS
    * ===================================================================== */
+  /** Contador numérico animado (0 → valor). */
+  function animateCount(el, to, duration = 1100) {
+    if (prefersReducedMotion) { el.textContent = String(to); return; }
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = String(Math.round(to * eased));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  /** Revela cards ao entrar na tela, anima anel e contadores. */
+  function startResultAnimations() {
+    if (revealObserver) revealObserver.disconnect();
+    const items = $$('#resultsSection .reveal');
+    if (!('IntersectionObserver' in window) || prefersReducedMotion) {
+      items.forEach((el) => el.classList.add('is-visible'));
+    } else {
+      items.forEach((el) => el.classList.remove('is-visible'));
+      revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) { entry.target.classList.add('is-visible'); revealObserver.unobserve(entry.target); }
+        });
+      }, { threshold: 0.12 });
+      items.forEach((el) => revealObserver.observe(el));
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $$('#resultsSection .ring-progress').forEach((ring) => { ring.style.strokeDashoffset = ring.dataset.offset; });
+    }));
+    $$('#resultsSection [data-count]').forEach((el) => animateCount(el, Number(el.dataset.count)));
+  }
+
+  /** Painel "Analisando…" com checklist dos pilares. */
+  async function playAnalysisAnimation() {
+    if (prefersReducedMotion) return;
+    const overlay = $('#analysisOverlay');
+    const list = $('#analysisList');
+    list.innerHTML = PILLARS.map((p) => `
+      <li class="an-item flex items-center gap-3" data-state="wait">
+        <span class="grid h-5 w-5 place-items-center">
+          <span class="an-wait h-1.5 w-1.5 rounded-full bg-line"></span>
+          <svg class="an-spin logo-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="rgb(var(--line))" stroke-width="3"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="rgb(var(--accent))" stroke-width="3" stroke-linecap="round"/></svg>
+          <svg class="an-done h-4 w-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </span>
+        <span>Avaliando ${escapeHtml(p.name)}</span>
+      </li>`).join('');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('grid');
+    const items = Array.from(list.children);
+    for (const item of items) {
+      item.dataset.state = 'run';
+      await wait(APP_CONFIG.analysisStepMs);
+      item.dataset.state = 'done';
+    }
+    await wait(180);
+    overlay.classList.add('hidden');
+    overlay.classList.remove('grid');
+  }
+
+  /* =====================================================================
+   * 18. GRÁFICO RADAR (Chart.js)
+   *   Destrói a instância anterior antes de criar outra (sem sobreposição).
+   *   Para o PDF, gera uma imagem em tema claro num canvas temporário.
+   * ===================================================================== */
+  function radarConfig(d, theme, { animate = true, responsive = true } = {}) {
+    const dark = theme === 'dark';
+    const colors = dark
+      ? { grid: 'rgba(255,255,255,0.08)', angle: 'rgba(255,255,255,0.10)', label: '#e2e8f0', tick: '#94a3b8', company: '#38bdf8', companyFill: 'rgba(56,189,248,0.18)', ideal: '#34d399', point: '#0d121e' }
+      : { grid: '#e2e8f0', angle: '#cbd5e1', label: '#0f172a', tick: '#475569', company: '#0284c7', companyFill: 'rgba(2,132,199,0.18)', ideal: '#059669', point: '#ffffff' };
+    return {
+      type: 'radar',
+      data: {
+        labels: d.pillarScores.map((p) => p.short),
+        datasets: [
+          { label: d.profile.companyName, data: d.pillarScores.map((p) => p.percent), fill: true,
+            backgroundColor: colors.companyFill, borderColor: colors.company, borderWidth: 2.5,
+            pointBackgroundColor: colors.company, pointBorderColor: colors.point, pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7 },
+          { label: `Nível ideal (${APP_CONFIG.idealLevel}%)`, data: d.pillarScores.map(() => APP_CONFIG.idealLevel), fill: false,
+            borderColor: colors.ideal, borderDash: [6, 5], borderWidth: 2, pointRadius: 0, pointHoverRadius: 0 }
+        ]
+      },
+      options: {
+        responsive,
+        maintainAspectRatio: false,
+        devicePixelRatio: responsive ? undefined : 2,
+        animation: animate ? { duration: 900, easing: 'easeOutQuart' } : false,
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { stepSize: 20, callback: (v) => `${v}%`, backdropColor: 'transparent', color: colors.tick, font: { size: 10 } },
+            grid: { color: colors.grid }, angleLines: { color: colors.angle },
+            pointLabels: { color: colors.label, font: { size: 13, weight: '600' } }
+          }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: colors.label, usePointStyle: true, boxWidth: 8, padding: 18 } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } }
+        }
+      }
+    };
+  }
+
   function renderRadarChart(d) {
     const canvas = $('#radarChart');
-    const labels = d.pillarScores.map((p) => p.short);
-    const values = d.pillarScores.map((p) => p.percent);
-    const ideal = d.pillarScores.map(() => APP_CONFIG.idealLevel);
-
-    // Texto alternativo para leitores de tela
     const summary = d.pillarScores.map((p) => `${p.name}: ${p.percent}%`).join('; ');
     canvas.setAttribute('aria-label', `Gráfico radar. ${summary}. Nível ideal de referência: ${APP_CONFIG.idealLevel}%.`);
     $('#radarFallback').textContent = `Pontuação por pilar — ${summary}. Nível ideal: ${APP_CONFIG.idealLevel}%.`;
 
     if (typeof window.Chart === 'undefined') {
-      $('#radarCanvasWrap').innerHTML = `<p class="grid h-full place-items-center rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-600">Não foi possível carregar o gráfico (Chart.js indisponível). ${escapeHtml(summary)}.</p>`;
+      $('#radarCanvasWrap').innerHTML = `<p class="grid h-full place-items-center rounded-xl bg-surface-2 p-4 text-center text-sm text-muted">Não foi possível carregar o gráfico (Chart.js indisponível). ${escapeHtml(summary)}.</p>`;
       return;
     }
-
-    // Destrói qualquer gráfico existente neste canvas
+    window.Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
     if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
     const existing = window.Chart.getChart(canvas);
     if (existing) existing.destroy();
-
-    radarChartInstance = new window.Chart(canvas.getContext('2d'), {
-      type: 'radar',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: d.profile.companyName,
-            data: values,
-            fill: true,
-            backgroundColor: 'rgba(2, 132, 199, 0.22)',
-            borderColor: '#0284c7',
-            borderWidth: 2.5,
-            pointBackgroundColor: '#0284c7',
-            pointBorderColor: '#ffffff',
-            pointRadius: 5,
-            pointHoverRadius: 7
-          },
-          {
-            label: `Nível ideal (${APP_CONFIG.idealLevel}%)`,
-            data: ideal,
-            fill: false,
-            borderColor: '#059669',
-            borderDash: [6, 5],
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 0
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: prefersReducedMotion ? false : { duration: 700, onComplete: updateRadarPrintImage },
-        scales: {
-          r: {
-            min: 0, max: 100,
-            ticks: { stepSize: 20, callback: (v) => `${v}%`, backdropColor: 'rgba(255,255,255,0.8)', color: '#475569', font: { size: 11 } },
-            grid: { color: '#e2e8f0' },
-            angleLines: { color: '#cbd5e1' },
-            pointLabels: { color: '#0f172a', font: { size: 13, weight: '700', family: 'Inter' } }
-          }
-        },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: '#334155', font: { size: 12, family: 'Inter' }, usePointStyle: true } },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}%` } }
-        }
-      }
-    });
-    if (prefersReducedMotion) updateRadarPrintImage();
+    radarChartInstance = new window.Chart(canvas, radarConfig(d, 'dark', { animate: !prefersReducedMotion }));
   }
 
-  /** Converte o gráfico em imagem estática para a impressão (evita distorções do canvas no PDF). */
-  function updateRadarPrintImage() {
-    if (!radarChartInstance) return;
-    try { $('#radarPrintImg').src = radarChartInstance.toBase64Image('image/png', 1); } catch (e) { /* ignora */ }
+  /** Gera a imagem estática (tema claro) usada na impressão / PDF. */
+  function buildRadarPrintImage(d) {
+    if (typeof window.Chart === 'undefined') return;
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:640px;height:520px;';
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 520;
+    holder.appendChild(canvas);
+    document.body.appendChild(holder);
+    let temp = null;
+    try {
+      temp = new window.Chart(canvas, radarConfig(d, 'light', { animate: false, responsive: false }));
+      $('#radarPrintImg').src = temp.toBase64Image('image/png', 1);
+    } catch (e) {
+      /* ignora: a impressão usará apenas o texto alternativo */
+    } finally {
+      if (temp) temp.destroy();
+      holder.remove();
+    }
   }
 
   /* =====================================================================
-   * 17. FLUXO PRINCIPAL, DEMO, IMPRESSÃO E LIMPEZA
+   * 19. FLUXO PRINCIPAL, DEMO, IMPRESSÃO E LIMPEZA
    * ===================================================================== */
+  function showView(view) {
+    const results = view === 'results';
+    $('#heroSection').classList.toggle('hidden', results);
+    $('#formSection').classList.toggle('hidden', results);
+    $('#resultsSection').classList.toggle('hidden', !results);
+  }
 
-  /** Valida, calcula e exibe o painel de resultados. */
-  function handleSubmit(event) {
-    if (event) event.preventDefault();
+  function setBusy(busy) {
+    isGenerating = busy;
+    $$('.js-demo, #btnNext, #btnPrev').forEach((b) => { b.disabled = busy || (b.id === 'btnPrev' && currentStep === 0); });
+  }
+
+  /** Valida, anima a análise, calcula e exibe o laudo. */
+  async function generateDiagnosis() {
+    if (isGenerating) return;
     const profile = collectProfile();
     const answers = collectAnswers();
     if (!validateForm(profile, answers)) return;
 
-    lastDiagnosis = runDiagnosis(profile, answers);
-    const results = $('#resultsSection');
-    results.classList.remove('hidden');
-    renderDashboard(lastDiagnosis);
-
-    results.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-    $('#resultsTitle').focus({ preventScroll: true });
-    showToast(`Laudo gerado: ${lastDiagnosis.classification.label} (${lastDiagnosis.overallScore}%) · Risco ${lastDiagnosis.risk.level.label}.`);
+    setBusy(true);
+    try {
+      await playAnalysisAnimation();
+      lastDiagnosis = runDiagnosis(profile, answers);
+      showView('results');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      renderDashboard(lastDiagnosis);
+      $('#resultsTitle').focus({ preventScroll: true });
+      showToast(`Laudo gerado · ${lastDiagnosis.classification.label} (${lastDiagnosis.overallScore}%) · risco ${lastDiagnosis.risk.level.label.toLowerCase()}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  /** Preenche o formulário com o caso exemplo e executa o diagnóstico imediatamente. */
+  /** Envio do formulário: avança uma etapa ou gera o diagnóstico na última. */
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (currentStep < STEPS.length - 1) nextStep();
+    else generateDiagnosis();
+  }
+
+  /** Preenche o formulário com um caso aleatório inédito e gera o laudo. */
   function loadDemoCase() {
-    $('#companyName').value = DEMO_CASE.companyName;
-    $('#sector').value = DEMO_CASE.sector;
-    $('#size').value = DEMO_CASE.size;
-    Object.entries(DEMO_CASE.answers).forEach(([qid, score]) => {
-      const input = document.querySelector(`input[name="${qid}"][value="${score}"]`);
+    if (isGenerating) return;
+    const demo = generateRandomDemo();
+    currentDemo = demo;
+    $('#companyName').value = demo.companyName;
+    $('#sector').value = demo.sector;
+    $('#size').value = demo.size;
+    QUESTIONS.forEach((q) => {
+      const input = document.querySelector(`input[name="${q.id}"][value="${demo.answers[q.id]}"]`);
       if (input) input.checked = true;
     });
-    updateProgress();
-    handleSubmit();
+    goToStep(STEPS.length - 1, { focus: false, scroll: false });
+    markMissing([]);
+    generateDiagnosis();
   }
 
-  /** Limpa o formulário e oculta o painel. */
+  /** Limpa tudo e volta ao início. */
   function resetAll() {
     $('#diagnosticForm').reset();
-    ['companyName', 'sector', 'size'].forEach((id) => setFieldError(id, false));
-    document.querySelectorAll('.question-error').forEach((el) => el.classList.remove('question-error'));
-    $('#validationMessage').classList.add('hidden');
-    $('#resultsSection').classList.add('hidden');
+    markMissing([]);
+    hideValidation();
+    currentDemo = null;
+    lastDiagnosis = null;
     if (radarChartInstance) { radarChartInstance.destroy(); radarChartInstance = null; }
     $('#radarPrintImg').removeAttribute('src');
-    lastDiagnosis = null;
-    updateProgress();
-    $('#formSection').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    showView('form');
+    goToStep(0, { focus: false, scroll: false });
+    $('#formSection').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
     $('#companyName').focus({ preventScroll: true });
   }
 
-  /** Imprime / exporta o laudo em PDF (via diálogo de impressão do navegador). */
+  /** Imprime / exporta o laudo em PDF (diálogo de impressão do navegador). */
   function handlePrint() {
-    updateRadarPrintImage();
     const original = document.title;
-    if (lastDiagnosis) {
-      // Sugere um nome de arquivo amigável ao salvar como PDF
-      document.title = `Laudo Jumbitos - ${lastDiagnosis.profile.companyName} - ${lastDiagnosis.reportId}`;
-    }
+    if (lastDiagnosis) document.title = `Laudo Jumbitos - ${lastDiagnosis.profile.companyName} - ${lastDiagnosis.reportId}`;
     window.print();
     setTimeout(() => { document.title = original; }, 500);
   }
 
-  /** Renderiza os créditos dos autores no rodapé e as assinaturas do laudo impresso. */
   function renderAuthors() {
     $('#authorsList').innerHTML = APP_CONFIG.authors.map((a) =>
-      `<li><strong class="text-slate-900">${escapeHtml(a.name)}</strong> — ${escapeHtml(a.role)}</li>`).join('');
+      `<li><span class="font-medium text-fg">${escapeHtml(a.name)}</span> <span class="text-muted">— ${escapeHtml(a.role)}</span></li>`).join('');
     $('#printSignatures').innerHTML = APP_CONFIG.authors.map((a) => `
       <div style="text-align:center;font-size:10px;">
         <div style="border-top:1px solid #334155;padding-top:4px;font-weight:700;">${escapeHtml(a.name)}</div>
@@ -1741,31 +2195,52 @@
   /** Inicialização da aplicação. */
   function init() {
     renderProfileOptions();
+    renderStepper();
     renderQuestions();
     renderAuthors();
+    $$('[data-logo]').forEach((el) => { el.innerHTML = logoSvg(); });
     refreshIcons();
-    updateProgress();
+    goToStep(0, { focus: false, scroll: false });
 
     const form = $('#diagnosticForm');
     form.addEventListener('submit', handleSubmit);
+    form.addEventListener('pointerdown', () => { lastInputWasPointer = true; });
+    form.addEventListener('keydown', () => { lastInputWasPointer = false; });
     form.addEventListener('change', (e) => {
-      if (e.target.matches('input[type="radio"]')) updateProgress();
-      if (e.target.matches('#sector, #size') && e.target.value) setFieldError(e.target.id, false);
+      if (e.target.matches('input[type="radio"]')) { updateProgress(); guideAfterAnswer(e.target); }
+      if (e.target.matches('#sector, #size')) { if (e.target.value) setFieldError(e.target.id, false); updateProgress(); }
     });
-    $('#companyName').addEventListener('input', (e) => { if (e.target.value.trim()) setFieldError('companyName', false); });
-    $('#validationMessage').addEventListener('click', handleValidationShortcut);
-    $('#btnDemo').addEventListener('click', loadDemoCase);
+    $('#companyName').addEventListener('input', (e) => { if (e.target.value.trim()) setFieldError('companyName', false); updateProgress(); });
+    $('#stepper').addEventListener('click', handleGoto);
+    $('#validationMessage').addEventListener('click', handleGoto);
+    $('#btnPrev').addEventListener('click', () => goToStep(currentStep - 1));
     $('#btnReset').addEventListener('click', resetAll);
     $('#btnNew').addEventListener('click', resetAll);
     $('#btnPrint').addEventListener('click', handlePrint);
-    $('#btnEdit').addEventListener('click', () => {
-      $('#formSection').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    $('#btnStart').addEventListener('click', () => {
+      $('#formSection').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+      goToStep(0, { scroll: false, focus: false });
       $('#companyName').focus({ preventScroll: true });
     });
-
-    // Atualiza a imagem do gráfico também quando o usuário usa Ctrl+P
-    window.addEventListener('beforeprint', updateRadarPrintImage);
+    $('#btnEdit').addEventListener('click', () => {
+      showView('form');
+      goToStep(0, { scroll: false });
+      $('#formSection').scrollIntoView({ behavior: 'auto', block: 'start' });
+    });
+    // Botões de demo aparecem em vários lugares (inclusive dinamicamente)
+    document.addEventListener('click', (e) => { if (e.target.closest('.js-demo')) loadDemoCase(); });
   }
+
+  /* =====================================================================
+   * 20. API PÚBLICA (somente leitura) — usada pelos testes automatizados
+   * ===================================================================== */
+  window.Jumbitos = Object.freeze({
+    version: APP_CONFIG.version,
+    config: APP_CONFIG, PILLARS, QUESTIONS, SECTORS, SIZES, CLASSIFICATION_BANDS, RISK_LEVELS, CLOUD_MODELS, DEMO_ARCHETYPES,
+    calculatePillarScores, calculateOverallScore, classifyScore, getTier, calculateOperationalRisk,
+    recommendCloudModel, buildRoadmap, buildRecommendations, runDiagnosis, generateRandomDemo,
+    getState: () => ({ currentStep, lastDiagnosis, currentDemo })
+  });
 
   document.addEventListener('DOMContentLoaded', init);
   </script>
